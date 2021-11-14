@@ -1,0 +1,4 @@
+
+class AddChatLine extends TEvent{
+    
+}
