@@ -1,9 +1,14 @@
 // A Timeline event
-//To use automatic timeline sychronization you must implement everything that changes the state as an
-// event that occurs at a specific time. This is the base class or doing so.
+//Override this class to implement timeline syncable events
 
-class TimeEvent{
+class TEvent{
+    time; // time event occurs
+    parameters ; // A JSON friendly representation of the paramters to run this evet
 
 
+
+    run(){
+        console.log("Run called on abstract event. You need to override run in your event class!") ;
+    }
 
 }
