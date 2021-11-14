@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<script type="text/javascript" src="InterfaceButton.js"></script>
+<script type="text/javascript">
+
+// Written by @Alrecenk who probably won't complain if you want to send him money.
+
+window.addEventListener("load", windowLoadHandler, false);
+
+function windowLoadHandler() {
+	// Any stuff you want to to before the canvas app is loaded goes here.
+	canvasApp();
+}
+
+function canvasApp() {
+	//The canvas this app is running on.
+	var theCanvas = document.getElementById("canvasOne");
+	// Comtext you can use to draw on.
+	var context = theCanvas.getContext("2d");
+	// Mouse position
+	var mouse_x;
+	var mouse_y;
+	// Where the mouse was last pressed down.
+	var down_mouse_x;
+	var down_mouse_y;
+	//Whether the mouse is currently down.
+	var mouse_down = false ;
+	//Which button is down (0 is left, 2 is right)
+	var mouse_button ;
+	
+	var interface_buttons = {}; // Map of from name to buttons currently on the interface.
+	
+	// Dummy variables you can delete.
+	var test_x = 10;
+	var test_y = 10;
+	var clicks = 0;
+	
+	function init() {
+		setupGame()
+		theCanvas.addEventListener("mousedown", mouseDownListener, false);
+		window.addEventListener("mousemove", mouseMoveListener, false);
+		window.addEventListener("mouseup", mouseUpListener, false);
+		window.addEventListener('keydown',keyListener,false);
+		setInterval(timeListener, 20); // Timer at 50 hertz.
+	}
+	
+	function setupGame(){
+		// Initialization stuff for canvas app goes here.
+		test_x = 100;
+		test_y = 100;
+		interface_buttons["test_button"] = new InterfaceButton(30, 50, 200, 60, 
+				"Here's a bunch of text in a button or it could be a text box that's like wrapped and such. If you click this it will change size randomly.",
+				13, "#000000", "#D0D0D0", "#FFFFFF", 3, afunction)
+		interface_buttons["button2"] = new InterfaceButton(500, 300, 200, 60, "Click Me!", 20, "#FFFFFF", null, "#FFFF00", 3, anotherfunction);
+		interface_buttons["info"] = new InterfaceButton(40, 600, 1200, 120, 
+				"This is a javascript template. It has the boiler plate code for catching keyboard, mouse, and timer events." +
+				" There are some convenience shape drawing methods (lines, circles, rounded rectangles, and the ever useful wrapped text in a box)." +
+				" It also has this nice little button/textbox class. It's not much but seemed like something I need a lot." +
+				" It's all in this one file, so you can just view source to steal this for your own weekend projects."
+				, 14, "#000000", "#D0D0D0", "#FFFFFF", 3, null);
+	}
+	
+	// This is a test function for clicking he test button.
+	// You can delete it.
+	function afunction(){
+		interface_buttons["test_button"].width = 50+Math.random()*300;
+		interface_buttons["test_button"].height = 50+Math.random()*300;
+	}
+	
+	function anotherfunction(){
+		clicks++;
+		interface_buttons["button2"].text = "I've been clicked " + clicks +" times!";
+		interface_buttons["button2"].text_size = 12;
+	}
+	
+	function drawScreen() {
+		//bg
+		context.fillStyle = "#000000";
+		context.fillRect(0,0,theCanvas.width,theCanvas.height);
+		
+		// Draw any buttons currently on the interface.
+		for (var button_name in interface_buttons) {
+	        if (interface_buttons.hasOwnProperty(button_name)) {
+	        	interface_buttons[button_name].draw(context);
+	        }
+	    }
+	
+		//This is junk code you can wipe.
+		if(mouse_down){
+			if(mouse_button == 0){
+				drawCircle(test_x, test_y, 30, "#00A000", "#FFFFFF", 5);
+			}else{
+				drawCircle(test_x, test_y, 30, "#A00000", null, 5);
+			}
+			drawLine("#0000A0",3,mouse_x, mouse_y, mouse_down_x, mouse_down_y);
+		}else{
+			drawRoundedRect(test_x-50, test_y-30, 100, 60, 10, "#00A000", "#FFFFFF", 5)
+		}
+		
+	}
+	
+	function timeListener(){
+		// This is junk code you can delete.
+		var dx = mouse_x - test_x;
+		var dy = mouse_y - test_y;
+		if(mouse_down){
+			if(mouse_button == 0){ // Left button
+				test_x += dx *.05;
+				test_y += dy *.05;
+			}else{ 
+				test_x -= dx *.05;
+				test_y -= dy *.05;
+			}
+		}
+		// Draw screen.
+		drawScreen();
+	}
+	
+	function keyListener(evt) {
+		evt = evt || window.event;
+	    var key_code = evt.keyCode || evt.which;
+	    var character = String.fromCharCode(key_code); // This only works with letters. Unpredictable otherwise.
+	    if(key_code == 37 || character == "A"){ // Left
+	    	test_x -= 20;
+	    }else if(key_code == 38 || character == "W"){// Up
+	    	test_y -= 20;
+	    }else if(key_code == 39 || character == "D" ){// Right
+	    	test_x += 20;
+	    }else if(key_code == 40 || character == "S"){// Down
+	    	test_y += 20;
+	    }
+	}
+	
+	function mouseDownListener(evt) {
+		var bRect = theCanvas.getBoundingClientRect();
+		mouse_down_x = (evt.clientX - bRect.left)*(theCanvas.width/bRect.width);
+		mouse_down_y = (evt.clientY - bRect.top)*(theCanvas.height/bRect.height);
+		mouse_down = true ;
+		mouse_button = evt.button ;
+		if(mouse_button == 0){// Left press
+			
+		}else if(mouse_button == 2){ // Right press
+			
+		}
+	}
+	
+	function mouseUpListener(evt) {
+		mouse_down = false ;
+		// Execute any buttons "clicked" (mouse up and down on the button)
+		for (var button_name in interface_buttons) {
+		       if (interface_buttons.hasOwnProperty(button_name)) {
+		    	   var b = interface_buttons[button_name];
+			       if(b.inside(mouse_x, mouse_y) && b.inside(mouse_down_x, mouse_down_y)){
+			       		b.execute();
+			       }
+		       }
+		   }
+		
+		if(mouse_button == 0){// Left release
+			
+		}else if(mouse_button == 2){ // Right release
+			
+		}
+	}
+
+	function mouseMoveListener(evt) {
+		//getting mouse position correctly 
+		var bRect = theCanvas.getBoundingClientRect();
+		mouse_x = (evt.clientX - bRect.left)*(theCanvas.width/bRect.width);
+		mouse_y = (evt.clientY - bRect.top)*(theCanvas.height/bRect.height);
+		
+		if(mouse_down){
+			if(mouse_button == 0){// Left drag
+				
+			}else if(mouse_button == 2){ // Right drag
+				
+			}
+		}
+	}
+	
+	// Draw a canvas line with a single call.
+	function drawLine(color, size, x1, y1, x2, y2){
+	    context.beginPath();
+	    context.lineWidth = size;
+	    context.strokeStyle = color;// set line color
+	    context.moveTo(x1, y1);
+	    context.lineTo(x2, y2);
+	    context.stroke();
+    }
+	
+	//Draw a canvas circle with a single call.
+	//Use null for fill or stroke color if you do not wish to draw that element.
+	function drawCircle(x, y, radius, fill_color, stroke_color, stroke_size){
+		context.beginPath();
+		context.arc(x, y, radius, 0, 2 * Math.PI, false);
+		context.closePath();
+		if(fill_color != null){
+			context.fillStyle = fill_color;
+			context.fill();
+		}
+		if(stroke_color != null){
+			context.lineWidth = stroke_size;
+			context.strokeStyle = stroke_color;
+			context.stroke();
+		}
+	}	
+	
+	init(); // Start the canvasApp.
+}
+
+</script>
+</head>
+<body>
+	<div style="top: 50px; text-align: center">
+		<canvas id="canvasOne" width="1280" height="720"
+			oncontextmenu="return false;">
+			Your browser does not support HTML5 canvas.
+		</canvas><br>
+		This text will appear below the application. It's good for links or listing controls.
+	</div>
+</body>
+</html>
