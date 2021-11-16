@@ -1,4 +1,0 @@
-
-class UpdatePlayer extends TEvent{
-    
-}

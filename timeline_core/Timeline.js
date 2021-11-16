@@ -12,12 +12,18 @@ class Timeline{
 
     get_instances ; // a temporary variable to hold references to objects returned by get
 
-    constructor(){
-
+    constructor(time){
+        current_time = time ;
+        base_time = time;
+        instants = {};
+        instant_read_index = {};
+        events = [];
+        badse_state = new HashList();
     }
 
-    // gets a copy of an object's value at the current time
-    // logs the access to reads
+    // returns an editable copy of an object's value at the current time
+    // logs the access to reads when occuring inside an event run
+    //TODO add get at time function and make this a wrapper for current time
     get(id){
 
         if(id in get_instances){
@@ -34,6 +40,16 @@ class Timeline{
 
         get_instances[id] = copy(instants[id][instant_read_index[id]]) ;
 
+    }
+
+    // Adds a new event
+    addEvent(event){
+
+    }
+
+    // Add
+    addObject(obj, time){
+        addEvent(new addObject(obj, time)) ;
     }
 
 
