@@ -7,8 +7,9 @@ class TEvent{
 
 
 
-    run(){
+    run(timeline){
         console.log("Run called on abstract event. You need to override run in your event class!") ;
+        console.log(this);
     }
 
 }

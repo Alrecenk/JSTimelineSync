@@ -3,5 +3,9 @@ class Player extends TObject{
     name = "";
     x = 0;
     y = 0;
-    button_codes = {} ; // keycodes for currently held keys
+    vx = 0 ;
+    vy = 0 ;
+    constructor(name){
+        this.name = name ;
+    }
 }
