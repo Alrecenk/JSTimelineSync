@@ -2,9 +2,9 @@
 // You can use addObject on the timelines and it will create this for you.
 class addObject extends TEvent{
 
-    constructor(obj, time){
+    constructor(time, params){
         super(time);
-        this.parameters = {type : obj.constructor.name, serial:obj.serialize()};
+        this.parameters = params;
     }
 
     run(timeline){

@@ -27,6 +27,7 @@ window.addEventListener("load", windowLoadHandler, false);
 
 var timeline_socket ;
 var timeline;
+var debug_timeline ;
 var port = 8081;
 var current_time = 0 ;
 var interval = 1/60.0;
@@ -41,6 +42,7 @@ var stroke_size = 4 ;
 
 function windowLoadHandler() {
     timeline = new Timeline();
+    debug_timeline = new Timeline();
     //timeline_socket = new TClient(timeline, 8081);
 
 	// Any stuff you want to to before the canvas app is loaded goes here.
@@ -84,7 +86,7 @@ function canvasApp() {
         player.name = "player " + my_id  ; // TODO let the player input this
         
         timeline.addObject(player, current_time) ;
-        timeline.addEvent(new MovePlayer(current_time+0.1, my_id, interval));
+        timeline.addEvent(new MovePlayer(current_time+0.1, {player_id:my_id, interval:interval }));
 	}
 	
 	
@@ -131,7 +133,7 @@ function canvasApp() {
                 vx = dx * player_speed/d1;
                 vy = dy * player_speed/d1;
             }
-            timeline.addEvent(new UpdatePlayerVelocity(current_time, my_id, vx, vy)) ;
+            timeline.addEvent(new UpdatePlayerVelocity(current_time,  {player_id:my_id, vx:vx, vy:vy})) ;
 		}
 
 
@@ -168,6 +170,24 @@ function canvasApp() {
 	    	
 	    }else if(key_code == 40 || character == "S"){// Down
 	    	
+            //console.log("Debug hash data:");
+            //console.log(debug_hash_data);
+            //let hash_data = timeline.getHashData(current_time - 1) ;
+            //console.log("Timeline hash data:");
+            //console.log(hash_data);
+
+            console.log("Debug timeline before update:");
+            console.log(debug_timeline);
+
+            let debug_hash_data = debug_timeline.getHashData(current_time - 1);
+            let update = timeline.getUpdateFor(debug_hash_data);
+            console.log("Debug timeline update:");
+            console.log(update);
+
+            debug_timeline.applyUpdate(update, true);
+            console.log("Debug timeline after update:");
+            console.log(debug_timeline);
+
 	    }
 	}
 	
@@ -188,7 +208,8 @@ function canvasApp() {
             vx = dx * player_speed/d1;
             vy = dy * player_speed/d1;
         }
-        timeline.addEvent(new UpdatePlayerVelocity(current_time, my_id, vx, vy)) ;
+        
+        timeline.addEvent(new UpdatePlayerVelocity(current_time, {player_id:my_id, vx:vx, vy:vy})) ;
 	}
 	
 	function mouseUpListener(evt) {
@@ -204,7 +225,7 @@ function canvasApp() {
         }
 		
         // Stop on mouse release
-		timeline.addEvent(new UpdatePlayerVelocity(current_time, my_id, 0, 0)) ;
+		timeline.addEvent(new UpdatePlayerVelocity(current_time,  {player_id:my_id, vx:0, vy:0})) ;
 
 
 	}
