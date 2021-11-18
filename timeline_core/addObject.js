@@ -3,19 +3,19 @@
 class addObject extends TEvent{
 
     constructor(obj, time){
-        this.time = time ;
-        params = {type : obj.constructor.name, serial:obj.serialize()};
+        super(time);
+        this.parameters = {type : obj.constructor.name, serial:obj.serialize()};
     }
 
     run(timeline){
-        let cl = stringToFunction(params.type);
-        let obj = new cl(); // TODO every class needs an empty construcor for this to work
+        let obj = TObject.getObjectBySerialized(this.parameters.type, timeline.getNextID(), this.parameters.serial) ;
+        timeline.instants[obj.ID] = [{time:this.time, obj:obj}];
+        timeline.instant_read_index[obj.ID] = 0;
+        this.write_ids = {};
+        this.write_ids[obj.ID] = true; 
+        this.read_ids = {};
+        this.read_ids[obj.ID] = true;  // TODO unclear how this route around the core algorithm interacts with rollback, could be a bug source
 
-        obj.set(params.serial);
-        obj.ID = timeline.getNextID();
-        timeline.instant[obj.ID] = [[this.time, obj]];
-        timeline.instant_read_index = 0;
-
-        //TODO  Dirty all events that have read this value after this time (this could be executed again after a rollback and it won't trigger through the regular event execute)
+        //console.log(" Event("+this.time+"): Added " + this.parameters.type + " to ID " + obj.ID);
     }
 }
