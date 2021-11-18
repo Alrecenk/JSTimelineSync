@@ -5,7 +5,23 @@ class Player extends TObject{
     y = 0;
     vx = 0 ;
     vy = 0 ;
-    constructor(name){
-        this.name = name ;
+    constructor(){
+        super();
+    }
+
+    // Serialize this object to a string
+    serialize(){
+        let s = {name:this.name, x:this.x, y:this.y, vx:this.vx, vy:this.vy};
+        return JSON.stringify(s);
+    }
+
+    // Se6t this object to a serialized string created with serialize.
+    set(serialized){
+        let s = JSON.parse(serialized);
+        this.name = s.name;
+        this.x = s.x;
+        this.y = s.y ;
+        this.vx = s.vx;
+        this.vy = s.vy ;
     }
 }

@@ -4,6 +4,21 @@
 <head>
 <meta charset="UTF-8">
 <script type="text/javascript" src="InterfaceButton.js"></script>
+
+<script type="text/javascript" src="timeline_core/TObject.js"></script>
+<script type="text/javascript" src="timeline_core/TEvent.js"></script>
+<script type="text/javascript" src="timeline_core/Timeline.js"></script>
+<script type="text/javascript" src="timeline_core/AddObject.js"></script>
+
+<script type="text/javascript" src="objects/Player.js"></script>
+<script type="text/javascript" src="objects/ChatLog.js"></script>
+
+<script type="text/javascript" src="events/MovePlayer.js"></script>
+<script type="text/javascript" src="events/AddChatLine.js"></script>
+<script type="text/javascript" src="events/UpdatePlayerVelocity.js"></script>
+
+
+
 <script type="text/javascript">
 
 // Written by @Alrecenk who probably won't complain if you want to send him money.
@@ -13,15 +28,20 @@ window.addEventListener("load", windowLoadHandler, false);
 var timeline_socket ;
 var timeline;
 var port = 8081;
+var current_time = 0 ;
 var interval = 1/60.0;
 
-var my_name = "";
 var my_id = -1 ;
+var player_radius = 40;
+var player_speed = 1000;
+var player_fill = "#D0D0D0";
+var player_stroke = "#D000D0" ;
+var stroke_size = 4 ;
 
 
 function windowLoadHandler() {
-    timeline = new TimeLine();
-    timeline_socket = new TClient(timeline, 8081);
+    timeline = new Timeline();
+    //timeline_socket = new TClient(timeline, 8081);
 
 	// Any stuff you want to to before the canvas app is loaded goes here.
 	canvasApp();
@@ -57,10 +77,14 @@ function canvasApp() {
 	
 	function setupGame(){
 		// Initialization stuff for canvas app goes here.
-        my_id = timeline.getNextID(); // TODO could be a race condition if a remote object egts an ID at the same time?
-        my_name = "player " + my_id  ; // TODO let the player input this
-		timeline.addObject(new Player(my_name), timeline.current_time) ;
-        timeline.addEvent(new MovePlayer(timeline.current_time, my_id, interval));
+        my_id = timeline.getNextID(); // TODO race condition: this will be wrong if some other addObject event gets in before this one runs
+		let player = new Player();
+        player.x = 200 ;
+        player.y = 200 ;
+        player.name = "player " + my_id  ; // TODO let the player input this
+        
+        timeline.addObject(player, current_time) ;
+        timeline.addEvent(new MovePlayer(current_time+0.1, my_id, interval));
 	}
 	
 	
@@ -77,9 +101,12 @@ function canvasApp() {
 	    }
 
         let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
-
+        //console.log(IDs)
         for(let id in IDs){
             let p = timeline.get(id) ;
+            if(p==null){
+                continue ; //TODO print error
+            }
             if(p.constructor.name == "Player"){
                 drawCircle(p.x, p.y, player_radius, player_fill, player_stroke,stroke_size);
             }
@@ -91,8 +118,37 @@ function canvasApp() {
 	}
 	
 	function timeListener(){
-        timeline.advanceCurrentTime(interval);
+        
+        if(mouse_down){
+			let vx = 0 ; // if click invalid then default to stop
+            let vy = 0 ;
+            let me = timeline.get(my_id);
+            let dx = mouse_x - me.x;
+            let dy = mouse_y - me.y;
+            let d2 = dx*dx+ dy*dy ;
+            if(d2 > player_radius*player_radius){ // not clicking on self
+                let d1 = Math.sqrt(d2);
+                vx = dx * player_speed/d1;
+                vy = dy * player_speed/d1;
+            }
+            timeline.addEvent(new UpdatePlayerVelocity(current_time, my_id, vx, vy)) ;
+		}
+
+
+        current_time += interval ;
+
+
+
+
+        timeline.executeToTime(current_time);
+        timeline.advanceBaseTime(current_time-3);
+        //console.log(timeline);
 		// Draw screen.
+
+
+
+
+
 		drawScreen();
 	}
 	
@@ -128,11 +184,11 @@ function canvasApp() {
         let dy = mouse_down_y - me.y;
         let d2 = dx*dx+ dy*dy ;
         if(d2 > player_radius*player_radius){ // not clicking on self
-            let d1 = sqrt(d2);
-            let vx = dx * player_speed/d1;
-            let vy = dy * player_speed/d1;
-            timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time, my_id, vx, vy)) ;
+            let d1 = Math.sqrt(d2);
+            vx = dx * player_speed/d1;
+            vy = dy * player_speed/d1;
         }
+        timeline.addEvent(new UpdatePlayerVelocity(current_time, my_id, vx, vy)) ;
 	}
 	
 	function mouseUpListener(evt) {
@@ -148,7 +204,7 @@ function canvasApp() {
         }
 		
         // Stop on mouse release
-		timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time, my_id, 0, 0)) ;
+		timeline.addEvent(new UpdatePlayerVelocity(current_time, my_id, 0, 0)) ;
 
 
 	}
@@ -159,21 +215,7 @@ function canvasApp() {
 		mouse_x = (evt.clientX - bRect.left)*(theCanvas.width/bRect.width);
 		mouse_y = (evt.clientY - bRect.top)*(theCanvas.height/bRect.height);
 		
-		if(mouse_down){
-			let vx = 0 ; // if click invalid then default to stop
-            let vy = 0 ;
-            let me = timeline.get(my_id);
-            let dx = mouse_x - me.x;
-            let dy = mouse_y - me.y;
-            let d2 = dx*dx+ dy*dy ;
-            if(d2 > player_radius*player_radius){ // not clicking on self
-                let d1 = sqrt(d2);
-                let vx = dx * player_speed/d1;
-                let vy = dy * player_speed/d1;
-                timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time, my_id, vx, vy)) ;
-            }
-            
-		}
+		
 	}
 	
 	// Draw a canvas line with a single call.
