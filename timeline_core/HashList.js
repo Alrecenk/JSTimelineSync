@@ -38,8 +38,4 @@ class HashList{
         }
         return packet ;
     }
-
-    static hash(string){
-        //TODO see CRC32 or consider migrating murmur32 if that doesn't work well
-    }
 }
