@@ -9,6 +9,7 @@
 <script type="text/javascript" src="timeline_core/TEvent.js"></script>
 <script type="text/javascript" src="timeline_core/Timeline.js"></script>
 <script type="text/javascript" src="timeline_core/AddObject.js"></script>
+<script type="text/javascript" src="timeline_core/TClient.js"></script>
 
 <script type="text/javascript" src="objects/Player.js"></script>
 <script type="text/javascript" src="objects/ChatLog.js"></script>
@@ -39,11 +40,12 @@ var player_fill = "#D0D0D0";
 var player_stroke = "#D000D0" ;
 var stroke_size = 4 ;
 
+var connected = false;
 
 function windowLoadHandler() {
     timeline = new Timeline();
     debug_timeline = new Timeline();
-    //timeline_socket = new TClient(timeline, 8081);
+    timeline_socket = new TClient(timeline, 8081);
 
 	// Any stuff you want to to before the canvas app is loaded goes here.
 	canvasApp();
@@ -121,6 +123,11 @@ function canvasApp() {
 	
 	function timeListener(){
         
+        if(!connected && timeline_socket.ready()){
+            timeline_socket.send("Hello from web client!");
+            connected = true ;
+        }
+
         if(mouse_down){
 			let vx = 0 ; // if click invalid then default to stop
             let vy = 0 ;
@@ -139,18 +146,10 @@ function canvasApp() {
 
         current_time += interval ;
 
-
-
-
         timeline.executeToTime(current_time);
         timeline.advanceBaseTime(current_time-3);
         //console.log(timeline);
 		// Draw screen.
-
-
-
-
-
 		drawScreen();
 	}
 	
@@ -266,7 +265,13 @@ function canvasApp() {
 		}
 	}	
 	
+
+
 	init(); // Start the canvasApp.
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 </script>
