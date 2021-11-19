@@ -53,7 +53,7 @@ class Timeline{
 
     // Adds a new event
     addEvent(new_event){
-        
+        // TODO make sure events at the ame time have their order set deterministically(maybe by hash) not by whenthe ywere added.
         let place = this.events.length;
         while(place > 0 && this.events[place-1].time > new_event.time){
             place--;
@@ -61,7 +61,7 @@ class Timeline{
         this.events.splice(place,0,new_event);
         this.next_execute = Math.min(place,this.next_execute);
         //console.log(this.events);
-        //TODO track events spawned rom other events so they can be deleted if a rerun doesn't spawn them
+        //TODO track events spawned from other events so they can be deleted if a rerun doesn't spawn them
     }
 
     // Add an object
