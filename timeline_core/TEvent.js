@@ -8,13 +8,14 @@ class TEvent{
 
     read_ids = {};
     write_ids = {};
+    spawned_by =""; // The hash of the event that created this event if it was created by another event
 
     constructor(time){
         this.time = time;
     }
 
     serialize(){
-        return JSON.stringify({event:this.constructor.name, time:this.time, parameters:this.parameters});
+        return JSON.stringify({event:this.constructor.name, time:this.time, spawned_by:this.spawned_by, parameters:this.parameters});
     }
 
     hash(){
@@ -37,6 +38,7 @@ class TEvent{
         let es = "ev = new "+p.event+"(" + p.time +", " + JSON.stringify(p.parameters) +");" ;
         //console.log(es);
         eval(es); // TODO got to be a better way also every class needs an empty constructor for this to work
+        ev.spawned_by = p.spawned_by;
         return ev ;
     }
 
