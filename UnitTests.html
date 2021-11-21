@@ -1,0 +1,106 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<script type="text/javascript" src="InterfaceButton.js"></script>
+
+<script type="text/javascript" src="timeline_core/TObject.js"></script>
+<script type="text/javascript" src="timeline_core/TEvent.js"></script>
+<script type="text/javascript" src="timeline_core/Timeline.js"></script>
+<script type="text/javascript" src="timeline_core/AddObject.js"></script>
+<script type="text/javascript" src="timeline_core/TClient.js"></script>
+
+<script type="text/javascript" src="objects/Player.js"></script>
+<script type="text/javascript" src="objects/ChatLog.js"></script>
+
+<script type="text/javascript" src="events/MovePlayer.js"></script>
+<script type="text/javascript" src="events/AddChatLine.js"></script>
+<script type="text/javascript" src="events/UpdatePlayerVelocity.js"></script>
+
+<script type="text/javascript">
+
+function getPlayerMoveStart(){
+    let timeline =new Timeline(0);
+    let player = new Player();
+    player.x = 0 ;
+    player.y = 5 ;
+    player.vx = 10 ;
+    player.name = "player 0" ; 
+    timeline.addObject(player, 0) ;
+    timeline.addEvent(new MovePlayer(0.1, {player_id:0, interval:0.1 }));
+    return timeline ;
+}
+
+function playerSerialize(){
+    let player = new Player();
+    player.x = 200 ;
+    player.y = 200 ;
+    player.name = "player 1"; // TODO let the player input this
+    let serial = player.serialize();
+    console.assert(serial == `{"name":"player 1","x":200,"y":200,"vx":0,"vy":0}`, "Player failed serialize: " +serial);
+    let np = TObject.getObjectBySerialized(player.constructor.name, 0, serial);
+    let serial2 = np.serialize();
+    console.assert(serial2 == serial,"Player failed reserialize: " + serial2 +" != " + serial);
+}
+
+function moveSerialize(){
+    let move = new MovePlayer(0.1, {player_id:9, interval:0.1 }) ;
+    let serial = move.serialize();
+    console.assert(serial == `{"event":"MovePlayer","time":0.1,"parameters":{"player_id":9,"interval":0.1}}`, "Move failed serialize: " + serial);
+    let np = TEvent.getEventBySerialized(serial) ;
+    let serial2 = np.serialize();
+    console.assert(serial2 == serial, "Move failed reserialize: " + serial2 +" != " + serial);
+}
+
+function addPlayerAndMove(){
+    let timeline = getPlayerMoveStart() ;
+    
+    console.assert(timeline.events.length == 2, "Incorrect starting events from getPlayerMoveStart "+ JSON.stringify(timeline));
+    console.assert(Object.keys(timeline.instants).length == 0, "Incorrect starting objects from getPlayerMoveStart " + JSON.stringify(timeline));
+    
+    timeline.current_time = 0.05;
+    timeline.executeToTime(timeline.current_time);
+    console.assert(timeline.events.length == 2, "Incorrect # events after first step " + JSON.stringify(timeline));
+    console.assert(Object.keys(timeline.instants).length == 1, "Incorrect # objects after first step " + JSON.stringify(timeline));
+    console.assert(timeline.instants[0].length == 1, "Incorrect # instants after first step " + JSON.stringify(timeline.instants));
+    console.assert(timeline.instants[0][0].obj.x == 0, "Player does not exist or is incorrectly placed!" + JSON.stringify(timeline.instants) ) ;
+    
+    timeline.current_time = 0.1;
+    timeline.executeToTime(timeline.current_time);
+    console.assert(timeline.events.length == 3, "Incorrect # events after second step " + JSON.stringify(timeline));
+    console.assert(Object.keys(timeline.instants).length == 1, "Incorrect # objects after second step " + JSON.stringify(timeline));
+    console.assert(timeline.instants[0].length == 2, "Incorrect # instants after second step " + JSON.stringify(timeline.instants));
+    console.assert(timeline.instants[0][1].obj.x == 1, "Player does not exist or is incorrectly placed!" + JSON.stringify(timeline.instants) ) ;
+
+    timeline.current_time = 0.2;
+    timeline.executeToTime(timeline.current_time);
+    console.assert(timeline.events.length == 4, "Incorrect # events after third step " + JSON.stringify(timeline));
+    console.assert(Object.keys(timeline.instants).length == 1, "Incorrect # objects after third step " + JSON.stringify(timeline));
+    console.assert(timeline.instants[0].length == 3, "Incorrect # instants after third step " + JSON.stringify(timeline.instants));
+    console.assert(timeline.instants[0][2].obj.x == 2, "Player does not exist or is incorrectly placed!" + JSON.stringify(timeline.instants) ) ;
+}
+
+function synchronizetoEmptyTimeline(){
+    //TODO
+
+}
+function synchronizeChangingVelocity(){
+    //TODO
+}
+function synchronizeTwoPlayersChanging(){
+    //TODO
+}
+
+function runAllTests(){
+    playerSerialize();
+    moveSerialize();
+    addPlayerAndMove();
+    synchronizetoEmptyTimeline();
+    synchronizeChangingVelocity();
+    synchronizeTwoPlayersChanging();
+    console.log("Tests completed.");
+}
+
+runAllTests();
+</script>
+</head>
+</html>

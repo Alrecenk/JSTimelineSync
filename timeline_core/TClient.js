@@ -2,7 +2,9 @@
 var client_global ;
 class TClient{
     timeline ; // Timeline being synchronized
+    connected = false ; // Whether sycnrhonization is current connected
     //The address with protocol and port
+
     address = null;
     //The websocket
     socket = null ; 
@@ -24,12 +26,36 @@ class TClient{
         return this.socket.readyState == WebSocket.OPEN ;
     }
 
+    async start(){
+        // wait until socket ready to send first packet
+        while(!timeline_socket.ready()){ 
+            await sleep(100);;
+        }
+        let update = {base_time: -1, events:[], base:{}} ;
+        let out_packet = {update:update, hash_data:timeline.getHashData(-1)};
+        this.send(JSON.stringify(out_packet));
+        // Wait until first response before botting app
+        while(!timeline_socket.connected){
+            await sleep(100);
+            console.log("waiting for server response...") ;
+        }
+        console.log("Sycnhronization connected.");
+
+    }
+
     receive(message){
         console.log("Got message from server:" + message);
+        console.log(this.timeline) ;
+        let in_packet = JSON.parse(message);
+        let out_packet= this.timeline.synchronize(in_packet.hash_data, in_packet.update, true, this.timeline.current_time-Timeline.sync_base_age);
+        this.send(JSON.stringify(out_packet));
+        this.connected = true;
     }
 
     send(message){
+        console.log("sent message: " + message);
         this.socket.send(message);
     }
+
     
 }
