@@ -1,20 +1,21 @@
+
 // The core execution timeline used for synchronization
-
 class Timeline{
-    //base_state ; // Hash List of base state
-    //base_time ; // Time base state snapshot was taken
 
-    events ; // Events after base_time
-
-    current_time; 
+    events ; // Events after base time
+    current_time;
+    executed_time; 
     next_execute = 0 ;
-    instants ; // map<id, vector<{time,obj}> of value of each object immediately after each change for time between base_time and current_time
+    instants ; // map<id, vector<{time,obj}> of value of each object immediately after each change for time between base time and executed_time
     instant_read_index ; // map<id,int> points to position in instant sub vectors last read (starting from here allows fast access for temporally coherent reads)
 
     get_instances ; // a temporary variable to hold references to objects returned by get
 
+    static sync_base_age = 1 ; // time in seconds that synced base time is behind current time
+
     constructor(time){
         this.current_time = time ;
+        this.executed_time = time ;
         //this.base_time = time;
         this.instants = {};
         this.instant_read_index = {};
@@ -25,7 +26,7 @@ class Timeline{
     // returns an editable copy of an object's value at the current time
     // logs the access to reads when occuring inside an event run
     get(id){
-        return this.getInstant(id, this.current_time)
+        return this.getInstant(id, this.executed_time)
     }
 
     // returns an editable copy of an object's value at the given time
@@ -38,17 +39,20 @@ class Timeline{
         if(!(id in this.instants)){
             return null ;
         }
-        // Walk the pointer until it points at the last value before the current_time
+        // Walk the pointer until it points at the last value before the executed_time
         while(this.instant_read_index[id] > 0 && this.instants[id][this.instant_read_index[id]].time > time){
             this.instant_read_index[id]--;
         }
-        while(this.instant_read_index[id] < this.instants[id].length - 1 && this.instants[id][this.instant_read_index[id]+1].time < time){
+        while(this.instant_read_index[id] < this.instants[id].length - 1 && this.instants[id][this.instant_read_index[id]+1].time <= time){
             this.instant_read_index[id]++;
         }
-
+        if(this.instants[id][this.instant_read_index[id]].time <= time){ // don't pull newly created objects from the future
+            this.get_instances[id] = TObject.copy(this.instants[id][this.instant_read_index[id]].obj) ;
+            return this.get_instances[id]
+        }else{
+            return null;
+        }
         
-        this.get_instances[id] = TObject.copy(this.instants[id][this.instant_read_index[id]].obj) ;
-        return this.get_instances[id]
     }
 
     // Adds a new event
@@ -82,7 +86,7 @@ class Timeline{
         if(event.done){ // This event has already been run and it didn't read anything that has been rolled back
             return true ;
         }
-        this.current_time = event.time ;
+        this.executed_time = event.time ;
         this.get_instances = {};
         event.run(this);
         event.read_ids = {};
@@ -94,9 +98,9 @@ class Timeline{
             if(this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.last_hash){ // object was edited
                 event.write_ids[read_id] = true;
                 //Delete all instants after edited one
-                this.instants[read_id].splice(this.instant_read_index[read_id], this.instants[read_id].length);
+                this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);
                 //Add new edit to the end of instants at this time
-                this.instants[read_id].push({time:this.current_time, obj:this.get_instances[read_id]});
+                this.instants[read_id].push({time:this.executed_time, obj:this.get_instances[read_id]});
 
                 data_dirtied[read_id] = true; // dirty all IDs we edited this time
             }
@@ -121,40 +125,43 @@ class Timeline{
     }
 
     // Returns hash information to detect differences in base state and the event queue
-    getHashData(snapshot_time){
+    getHashData(base_time){
         //TODO this could be a lot faster
         let base_hashes = {};
         for(let id in this.instants){
-            base_hashes[id] = this.getInstant(id, snapshot_time).hash() ;
+            let obj = this.getInstant(id, base_time);
+            if(obj != null){ // can happen if the first instant is after base_time
+                base_hashes[id] = obj.hash() ;
+            }
         }
         let event_hashes = [];
         for(let k = 0; k < this.events.length; k++){
-            if(this.events[k].time > snapshot_time){
+            if(this.events[k].time > base_time){
                 event_hashes.push(this.events[k].hash());
             }
         }
 
-        return {time:snapshot_time, base:base_hashes, events: event_hashes};
+        return {base_time:base_time, current_time: this.current_time, base:base_hashes, events: event_hashes};
     }
 
-    synchronize(my_update, other_hashdata){
-        this.applyUpdate(my_update);
-        other_update = this.getUpdateFor(other_hashdata);
-        return [other_update, this.getHashData()]
+    synchronize(other_hashdata, my_update, allow_base_change, snapshot_time){
+        this.applyUpdate(my_update, allow_base_change);
+        let other_update = this.getUpdateFor(other_hashdata, snapshot_time);
+        return {update:other_update, hash_data:this.getHashData(snapshot_time)};
     }
 
 
     // Compare the hashes of the base state and event queue of an external timeline and build a packet to bring it into sync with this timeline
-    getUpdateFor(other_hash_data){
+    getUpdateFor(other_hash_data, snapshot_time){
         let event_updates = [];
-        let snapshot_time = other_hash_data.time ;
         let has_event_hash = {};
         //TODO this could be a lot faster
         for(let k=0;k<other_hash_data.events; k++){
             has_event_hash[other_hash_data.events[k]] = true;
         }
+        //TODO we could be sending events that haven't been spawned yet but will be due to clock differences
         for(let k = 0; k < this.events.length; k++){
-            if(this.events[k].time > snapshot_time){
+            if(this.events[k].time >= snapshot_time){
                 if(!has_event_hash[this.events[k].hash()]){
                     event_updates.push(this.events[k].serialize()); // TODO duplicate serialize
                 }
@@ -168,7 +175,7 @@ class Timeline{
                 obj_updates[id] = {type:base_obj.constructor.name, serial:base_obj.serialize()} ; // TODO duplicate serialize
             }
         }
-        return {time: snapshot_time, events:event_updates, base:obj_updates} ;
+        return {base_time: snapshot_time, current_time: this.current_time, events:event_updates, base:obj_updates} ;
     }
 
     // Apply an update to the event queue and/or base state 
@@ -176,15 +183,18 @@ class Timeline{
     applyUpdate(update, allow_base_change){
 
         for(let k = 0 ; k < update.events.length; k++){ 
+            console.log("Got event: " + update.events[k]) ;
             // TODO check if event has been added since the request was sent to avoid duplicate events
             this.addEvent(TEvent.getEventBySerialized(update.events[k])) ;
+
         }
         if(allow_base_change){
+            this.advanceBaseTime(update.base_time); // if we're snapshotting data to this time, we don't want to run any events prior
             let data_dirtied = {} ;
             this.get_instances = {};
-            // Base update follows same logic as event rolback data updates
+            // Base update follows same logic as event rollback data updates
             for(let read_id in update.base){
-                let obj = this.get(read_id, update.time);
+                let obj = this.get(read_id, update.base_time);
                 if(obj == null){
                     obj = TObject.getObjectBySerialized(update.base[read_id].type, read_id, update.base[read_id].serial) ;
                     this.instant_read_index[read_id] = 0 ;
@@ -216,11 +226,17 @@ class Timeline{
                     }
                 }
             }
+
+            if(update.base_time > this.current_time){
+                console.log("Update is way ahead, catching up...");
+                this.current_time = update.current_time;
+                this.executeToTime(this.current_time);
+            }
         }
     }
 
      // advances the base time, deleting all but one instant before base_time for each variable
-    // Does not execute events, so new_base_time cannot exceed current_time
+    // Does not execute events, so new_base_time cannot exceed executed_time
     advanceBaseTime(new_base_time){
         for(let id in this.instants){
             
@@ -245,17 +261,13 @@ class Timeline{
             this.events.splice(0,to_delete);  
             this.next_execute -= to_delete ;
         }
-
-        this.base_time = new_base_time ;
-
-        //TODO update hash data for base state atthis point?
     }
 
-    // execute events and compute object instants up to new current_time
-    executeToTime(new_current_time){
+    // execute events and compute object instants up to new executed_time
+    executeToTime(new_executed_time){
         let has_more = true;
         while(has_more){
-            has_more = this.executeNext(new_current_time);
+            has_more = this.executeNext(new_executed_time);
         }
     }
 

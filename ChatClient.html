@@ -28,25 +28,24 @@ window.addEventListener("load", windowLoadHandler, false);
 
 var timeline_socket ;
 var timeline;
+var kept_time = 3 ;
 var debug_timeline ;
 var port = 8081;
-var current_time = 0 ;
 var interval = 1/60.0;
 
 var my_id = -1 ;
 var player_radius = 40;
-var player_speed = 1000;
+var player_speed = 500;
 var player_fill = "#D0D0D0";
 var player_stroke = "#D000D0" ;
 var stroke_size = 4 ;
 
-var connected = false;
 
-function windowLoadHandler() {
-    timeline = new Timeline();
+async function windowLoadHandler() {
+    timeline = new Timeline(0);
     debug_timeline = new Timeline();
-    timeline_socket = new TClient(timeline, 8081);
-
+    //timeline_socket = new TClient(timeline, 8081);
+    //await timeline_socket.start();
 	// Any stuff you want to to before the canvas app is loaded goes here.
 	canvasApp();
 }
@@ -71,7 +70,7 @@ function canvasApp() {
 	
 	
 	function init() {
-		setupGame()
+		setupGame();
 		theCanvas.addEventListener("mousedown", mouseDownListener, false);
 		window.addEventListener("mousemove", mouseMoveListener, false);
 		window.addEventListener("mouseup", mouseUpListener, false);
@@ -87,8 +86,10 @@ function canvasApp() {
         player.y = 200 ;
         player.name = "player " + my_id  ; // TODO let the player input this
         
-        timeline.addObject(player, current_time) ;
-        timeline.addEvent(new MovePlayer(current_time+0.1, {player_id:my_id, interval:interval }));
+        timeline.addObject(player, timeline.current_time) ;
+        //console.log("End of set up game:");
+        //console.log(timeline.events[0]);
+        timeline.addEvent(new MovePlayer(timeline.current_time+0.1, {player_id:my_id, interval:interval }));
 	}
 	
 	
@@ -122,14 +123,8 @@ function canvasApp() {
 	}
 	
 	function timeListener(){
-        
-        if(!connected && timeline_socket.ready()){
-            timeline_socket.send("Hello from web client!");
-            connected = true ;
-        }
-
         if(mouse_down){
-			let vx = 0 ; // if click invalid then default to stop
+            let vx = 0 ; // if click invalid then default to stop
             let vy = 0 ;
             let me = timeline.get(my_id);
             let dx = mouse_x - me.x;
@@ -140,14 +135,14 @@ function canvasApp() {
                 vx = dx * player_speed/d1;
                 vy = dy * player_speed/d1;
             }
-            timeline.addEvent(new UpdatePlayerVelocity(current_time,  {player_id:my_id, vx:vx, vy:vy})) ;
-		}
+            timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time,  {player_id:my_id, vx:vx, vy:vy})) ;
+        }
 
 
-        current_time += interval ;
+        timeline.current_time += interval ;
 
-        timeline.executeToTime(current_time);
-        timeline.advanceBaseTime(current_time-3);
+        timeline.executeToTime(timeline.current_time);
+        timeline.advanceBaseTime(timeline.current_time-kept_time);
         //console.log(timeline);
 		// Draw screen.
 		drawScreen();
@@ -171,14 +166,14 @@ function canvasApp() {
 	    	
             //console.log("Debug hash data:");
             //console.log(debug_hash_data);
-            //let hash_data = timeline.getHashData(current_time - 1) ;
+            //let hash_data = timeline.getHashData(timeline.current_time - 1) ;
             //console.log("Timeline hash data:");
             //console.log(hash_data);
 
             console.log("Debug timeline before update:");
             console.log(debug_timeline);
 
-            let debug_hash_data = debug_timeline.getHashData(current_time - 1);
+            let debug_hash_data = debug_timeline.getHashData(timeline.current_time - 1);
             let update = timeline.getUpdateFor(debug_hash_data);
             console.log("Debug timeline update:");
             console.log(update);
@@ -207,8 +202,7 @@ function canvasApp() {
             vx = dx * player_speed/d1;
             vy = dy * player_speed/d1;
         }
-        
-        timeline.addEvent(new UpdatePlayerVelocity(current_time, {player_id:my_id, vx:vx, vy:vy})) ;
+        timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time, {player_id:my_id, vx:vx, vy:vy})) ;
 	}
 	
 	function mouseUpListener(evt) {
@@ -224,9 +218,7 @@ function canvasApp() {
         }
 		
         // Stop on mouse release
-		timeline.addEvent(new UpdatePlayerVelocity(current_time,  {player_id:my_id, vx:0, vy:0})) ;
-
-
+        timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time,  {player_id:my_id, vx:0, vy:0})) ;
 	}
 
 	function mouseMoveListener(evt) {
