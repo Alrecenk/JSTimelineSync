@@ -13,8 +13,9 @@ class Timeline{
     events_spawned = []; // A temporary variable to track what events are spawned by another running event
 
     static sync_base_age = 1 ; // time in seconds that synced base time is behind current time
+    static base_age = 2; // Amount of history to keep on the timeline
 
-    constructor(time){
+    constructor(time = 0){
         this.current_time = time ;
         this.executed_time = time ;
         //this.base_time = time;
@@ -70,8 +71,8 @@ class Timeline{
     }
 
     // Add an object
-    addObject(obj, time){
-        this.addEvent(new addObject(time, {type : obj.constructor.name, serial:obj.serialize()})) ;
+    addObject(obj, ID, time){
+        this.addEvent(new addObject(time, {type : obj.constructor.name, ID: ID, serial:obj.serialize()})) ;
     }
 
     // Executes the next event if it is not done and occurs before the given time
@@ -198,36 +199,36 @@ class Timeline{
 
     // Apply an update to the event queue and/or base state 
     // Note: the server should not allow external updates to its base state
-    applyUpdate(update, allow_base_change){
+    applyUpdate(update, allow_base_change = true){
+
+        let event_hashes = {}; // TODO this is pretty slow serializing every event every update
+
+        for(let k = 0; k < this.events.length; k++){
+            event_hashes[this.events[k].hash()] = true;
+        }
 
         for(let k = 0 ; k < update.events.length; k++){ 
-            //console.log("Got event: " + update.events[k]) ;
-            // TODO check if event has been added since the request was sent to avoid duplicate events
-            this.addEvent(TEvent.getEventBySerialized(update.events[k])) ;
-
+            if(!event_hashes[TEvent.hashSerial(update.events[k])]){ // Don't add duplicate events sent from server
+                this.addEvent(TEvent.getEventBySerialized(update.events[k])) ;
+            }
         }
         if(allow_base_change){
-            this.advanceBaseTime(update.base_time); // if we're snapshotting data to this time, we don't want to run any events prior
             let data_dirtied = {} ;
-            this.get_instances = {};
+            this.get_instances = {} ;
             // Base update follows same logic as event rollback data updates
             for(let read_id in update.base){
-                let obj = this.get(read_id, update.base_time);
+                let obj = this.getInstant(read_id, update.base[read_id].time);
                 if(obj == null){
                     obj = TObject.getObjectBySerialized(update.base[read_id].type, read_id, update.base[read_id].serial) ;
                     this.instant_read_index[read_id] = 0 ;
-                    this.instants[obj.ID] = [] ;
-                }else{
-                    obj.set(update.base[read_id]);
-                    
+                    this.instants[obj.ID] = [{time:update.base[read_id].time, obj:obj}] ;
+                }else if(obj.hash()!= TObject.hashSerial(update.base[read_id].serial)){
+                    obj.set(update.base[read_id].serial);
+                    //Delete all instants after edited one
+                    this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);
+                    //Add new edit to the end of instants at this time
+                    this.instants[read_id].push({time:update.base[read_id].time, obj:obj});
                 }
-                
-                //Delete all instants after edited one
-                this.instants[read_id].splice(this.instant_read_index[read_id], this.instants[read_id].length);
-                
-                //Add new edit to the end of instants at this time
-                this.instants[read_id].push({time:update.base[read_id].time, obj:obj});
-
                 data_dirtied[read_id] = true; // dirty all IDs we edited this time
             }
 
@@ -245,10 +246,10 @@ class Timeline{
                 }
             }
 
-            if(update.base_time > this.current_time){
-                console.log("Update is way ahead, catching up...");
+            if(update.current_time > this.current_time){
                 this.current_time = update.current_time;
                 this.executeToTime(this.current_time);
+                this.advanceBaseTime(this.current_time-Timeline.base_age);
             }
         }
     }
@@ -277,13 +278,21 @@ class Timeline{
         }
         let to_delete = i ;
         if(to_delete > 0){
-            this.events.splice(0,to_delete);  
+            // Delete the old events
+            this.events.splice(0,to_delete); 
+            // Adjust execution pointer
             this.next_execute -= to_delete ;
             // If we get base objects past where we've executed then we want to skip execution ahead to what wasn't deleted
             if(this.next_execute < 0){
                 this.next_execute = 0;
             }
         }
+    }
+
+    run(interval){
+        this.current_time += interval;
+        this.executeToTime(this.current_time);
+        this.advanceBaseTime(this.current_time-Timeline.base_age);
     }
 
     // execute events and compute object instants up to new executed_time

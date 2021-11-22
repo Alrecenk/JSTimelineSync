@@ -25,7 +25,7 @@ function getPlayerMoveStart(){
     player.y = 5 ;
     player.vx = 10 ;
     player.name = "player 0" ; 
-    timeline.addObject(player, 0) ;
+    timeline.addObject(player, 0, 0) ;
     timeline.addEvent(new MovePlayer(0.1, {player_id:0, interval:0.1 }));
     return timeline ;
 }
@@ -45,7 +45,7 @@ function playerSerialize(){
 function moveSerialize(){
     let move = new MovePlayer(0.1, {player_id:9, interval:0.1 }) ;
     let serial = move.serialize();
-    console.assert(serial == `{"event":"MovePlayer","time":0.1,"spawned_by":"","parameters":{"player_id":9,"interval":0.1}}`, "Move failed serialize: " + serial);
+    console.assert(serial == `{"event":"MovePlayer","time":0.1,"parameters":{"player_id":9,"interval":0.1}}`, "Move failed serialize: " + serial);
     let np = TEvent.getEventBySerialized(serial) ;
     let serial2 = np.serialize();
     console.assert(serial2 == serial, "Move failed reserialize: " + serial2 +" != " + serial);
@@ -79,7 +79,7 @@ function addPlayerAndMove(){
     console.assert(timeline.instants[0][2].obj.x == 2, "Player does not exist or is incorrectly placed!" + JSON.stringify(timeline.instants) ) ;
 }
 
-function synchronizetoEmptyTimeline(){
+function updateEmptyTimeline(){
     // Sync some basic starting events into an empty timeline
     let timeline = getPlayerMoveStart() ;
     let timeline2 = new Timeline(0);
@@ -115,17 +115,46 @@ function synchronizetoEmptyTimeline(){
     let t2hash3 = timeline2.getHashData(sync_base_time) ;
     console.assert(t2hash3.events.length == 3, "Post-update2 hash has wrong number of events.", t2hash3.events);
     console.assert(Object.keys(t2hash3.base).length == 1, "Post-update2 hash has wrong number of objects.", t2hash3.base);
-
-    // Running the clock forward on the client should overwrite synced events from the future and produce identical results without duplicating anything
-    timeline2.current_time += 0.2 ;
-    timeline2.executeToTime(timeline2.current_time);
-    let t2hash4 = timeline2.getHashData(sync_base_time) ;
-    t2hash3.current_time = t2hash4.current_time ; // Everything else should be the same 
-    console.assert(JSON.stringify(t2hash3) == JSON.stringify(t2hash4), "Running a synced timeline gets divergent results! ", timeline2);
-
 }
 function synchronizeChangingVelocity(){
-    //TODO
+    
+    let server = getPlayerMoveStart() ;
+    server.run(1); // Run for a second
+    console.assert(server.get(0).x == 10, "Player has not moved the correct amount in initialzation ", server.get(0));
+    // synchronize in timeline2
+    let client = new Timeline(0);
+    // create a starting synchronization packet from timeline 1 to 2
+    let packet = {update:server.getUpdateFor(client.getHashData(0), 0), hash_data:server.getHashData(0)};
+    // apply packet to timeline 2 and generate packet for timeline 1
+    packet = client.synchronize(packet.hash_data, packet.update, true, client.current_time-Timeline.sync_base_age);
+    console.assert(client.get(0).x == 10, "Player did not sync to the correct location ", client.get(0));
+    // create an event 1 second in the future to change the velocity
+    client.addEvent(new UpdatePlayerVelocity(2.01, {player_id:0, vx:0, vy:10}));
+    // apply packet to server
+    packet = server.synchronize(packet.hash_data, packet.update, false, server.current_time-Timeline.sync_base_age);
+    
+    // Runlive synchronization for 2 more seconds
+    let time = 1 ;
+    let step = 0.1 ;
+    for(let time = 1; time <= 3; time+=step){
+        server.run(step);
+        client.run(step);
+        packet = client.synchronize(packet.hash_data, packet.update, true, client.current_time-Timeline.sync_base_age);
+        packet = server.synchronize(packet.hash_data, packet.update, false, server.current_time-Timeline.sync_base_age);
+        
+        let times = client.instants[0].map(x => x.time);
+        for(let k=1; k<times.length;k++){
+            console.assert(times[k] >= times[k-1], "Client instant times are out of order! ", client.instants[0].map(x => [x.time, x.obj.x, x.obj.y]));
+            if(times[k] < times[k-1]){
+                return ;
+            }
+        }
+    }
+
+    let client_latest = client.get(0);
+    let server_latest = server.get(0);
+    console.assert(client_latest.serialize() == server_latest.serialize(), 
+        "Client and server are out of sync \n" + client_latest.serialize()  +"\n != \n" + server_latest.serialize());
 }
 function synchronizeTwoPlayersChanging(){
     //TODO
@@ -135,7 +164,7 @@ function runAllTests(){
     playerSerialize();
     moveSerialize();
     addPlayerAndMove();
-    synchronizetoEmptyTimeline();
+    updateEmptyTimeline();
     synchronizeChangingVelocity();
     synchronizeTwoPlayersChanging();
     console.log("Tests completed.");

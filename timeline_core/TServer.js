@@ -1,4 +1,4 @@
-var response_delay = 500;
+var response_delay = 10;
 // A wrapper class for a Node server providing timeline sync over a websocket
 class TServer{
     
@@ -14,16 +14,16 @@ class TServer{
         this.web_socket_server= new WebSocket.Server({ port: this.port });
 
         this.web_socket_server.on('connection', ws => {
-            console.log("Got connection!");
+            console.log("New connection!");
             ws.on('message', message => {
                 this.receive(message, ws, this.timeline) ;
             })
         });
-        console.log("Socket server opened on port " + port);
+        console.log("Timeline Sync server opened on port " + port);
     }
 
     receive(message, socket, timeline){
-        console.log("Received message => " + message);
+        //console.log("Received message => " + message);
 
         setTimeout(this.respond, response_delay, message, socket, timeline);
         

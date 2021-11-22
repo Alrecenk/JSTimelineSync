@@ -8,7 +8,7 @@ class addObject extends TEvent{
     }
 
     run(timeline){
-        let obj = TObject.getObjectBySerialized(this.parameters.type, timeline.getNextID(), this.parameters.serial) ;
+        let obj = TObject.getObjectBySerialized(this.parameters.type, this.parameters.ID, this.parameters.serial) ;
         timeline.instants[obj.ID] = [{time:this.time, obj:obj}];
         timeline.instant_read_index[obj.ID] = 0;
         this.write_ids = {};
