@@ -30,16 +30,14 @@ var port = 8081;
 var tserver ;
 
 function setUpGame(){
-    timeline = new Timeline(0);
+    timeline = new Timeline();
     //console.log("Starting timeline:");
     //console.log(timeline);
     // TODO set up chat log
 }
 
 function tick(){
-    timeline.current_time += interval ;
-    timeline.executeToTime(timeline.current_time);
-    timeline.advanceBaseTime(timeline.current_time-kept_time);
+    timeline.run(interval);
 }
 
 setUpGame();

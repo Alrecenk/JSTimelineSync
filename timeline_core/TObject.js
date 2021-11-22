@@ -18,26 +18,13 @@ class TObject{
     hash(){
         let serial = this.serialize();
         //TODO is this hash actually any good here?
-        this.last_hash = serial.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);              
+        this.last_hash = TObject.hashSerial(serial);            
         return this.last_hash ;
     }
-/*
-    static stringToFunction(str){
-        
-    var arr = str.split(".");
 
-    var fn = (window || this);
-    for (var i = 0, len = arr.length; i < len; i++) {
-        fn = fn[arr[i]];
+    static hashSerial(serial){
+        return serial.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);   
     }
-
-    if (typeof fn !== "function") {
-        throw new Error("function not found : " + str);
-    }
-
-    return  fn;
-    }
-    */
 
     // Makes it possible to initialize an object by the string name of its class
     static getObjectBySerialized(class_name, id, serial){

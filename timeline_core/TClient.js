@@ -27,25 +27,31 @@ class TClient{
     }
 
     async start(){
+        let wait_time = 0 ;
         // wait until socket ready to send first packet
-        while(!timeline_socket.ready()){ 
-            await sleep(100);;
+        while(!timeline_socket.ready() && wait_time < 2000){ 
+            await sleep(100);
+            wait_time+=100 ;
+        }
+        if(!timeline_socket.ready()){
+            console.log("Socket connection timed out. Starting local only execution.");
+            return;
         }
         let update = {base_time: -1, events:[], base:{}} ;
         let out_packet = {update:update, hash_data:timeline.getHashData(-1)};
         this.send(JSON.stringify(out_packet));
         // Wait until first response before botting app
-        while(!timeline_socket.connected){
+        
+        while(!timeline_socket.connected ){
             await sleep(100);
-            console.log("waiting for server response...") ;
         }
         console.log("Sycnhronization connected.");
 
     }
 
     receive(message){
-        console.log("Got message from server:" + message);
-        console.log(this.timeline) ;
+        //console.log("Got message from server:" + message);
+        //console.log(this.timeline) ;
         let in_packet = JSON.parse(message);
         let out_packet= this.timeline.synchronize(in_packet.hash_data, in_packet.update, true, this.timeline.current_time-Timeline.sync_base_age);
         this.send(JSON.stringify(out_packet));
@@ -53,7 +59,7 @@ class TClient{
     }
 
     send(message){
-        console.log("sent message: " + message);
+        //console.log("sent message: " + message);
         this.socket.send(message);
     }
 
