@@ -10,8 +10,9 @@ class TEvent{
     write_ids = {};
     spawned_by = undefined; // The hash of the event that created this event if it was created by another event
 
-    constructor(time){
+    constructor(time, params){
         this.time = time;
+        this.parameters = params;
     }
 
     serialize(){
