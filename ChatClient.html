@@ -35,6 +35,7 @@ var interval = 1/60.0;
 var base_age = 2 ;
 
 var my_id = -1 ;
+var chat_id = -1 ;
 var player_radius = 30;
 var player_speed = 800;
 var player_fill = "#D0D0D0";
@@ -46,13 +47,14 @@ var player_ahead = 0.035;
 
 var last_run_time = new Date().getTime();
 
+var last_chat_text = "";
+
 
 async function windowLoadHandler() {
     timeline = new Timeline();
     debug_timeline = new Timeline();
     timeline_socket = new TClient(timeline, 8081);
     await timeline_socket.start();
-	// Any stuff you want to to before the canvas app is loaded goes here.
 	canvasApp();
 }
 
@@ -74,7 +76,6 @@ function canvasApp() {
 	
 	var interface_buttons = {}; // Map of from name to buttons currently on the interface.
 	
-	
 	function init() {
 		setupGame();
 		theCanvas.addEventListener("mousedown", mouseDownListener, false);
@@ -82,6 +83,17 @@ function canvasApp() {
 		window.addEventListener("mouseup", mouseUpListener, false);
 		window.addEventListener('keydown',keyListener,false);
 		setInterval(timeListener, 1000*interval); // Timer
+
+        // Execute a function when the user releases a key on the keyboard
+        document.getElementById("textbox").addEventListener("keyup", function(event) {
+        // Number 13 is the "Enter" key on the keyboard
+        if (event.keyCode === 13) {
+            // Cancel the default action, if needed
+            event.preventDefault();
+            // Trigger the button element with a click
+            document.getElementById("send").click();
+        }
+        });
 	}
 	
 	function setupGame(){
@@ -90,7 +102,7 @@ function canvasApp() {
 		let player = new Player();
         player.x = 200 ;
         player.y = 200 ;
-        player.name = "player " + my_id  ; // TODO let the player input this
+        player.name = "Player " + my_id  ; // TODO let the player input this
         
         timeline.addObject(player, my_id, timeline.current_time) ;
         //console.log("End of set up game:");
@@ -127,7 +139,17 @@ function canvasApp() {
                 drawCircle(p.x, p.y, player_radius, player_fill, player_stroke,stroke_size);
             }
             if(p.constructor.name == "ChatLog"){
-                //TODO draw chat
+                chat_id = id ;
+                let chat_lines = p.chat;
+                while(chat_lines.length < p.max_lines){
+                    chat_lines.unshift("");
+                }
+                let chat_text = p.chat.join("<br>");
+                if(chat_text != last_chat_text){ // don't touch the DOM unless there's a change
+                    let paragraph = document.getElementById("chat");
+                    paragraph.innerHTML = chat_text ;   
+                    last_chat_text = chat_text;
+                } 
             }
         }
 		
@@ -175,16 +197,16 @@ function canvasApp() {
         
         // TODO update chat line and submit on enter
 
-        if(key_code == 37 || character == "A"){ // Left
+        if(key_code == 37 ){ // Left
 	    	
-	    }else if(key_code == 38 || character == "W"){// Up
+	    }else if(key_code == 38 ){// Up
             let me = timeline.getInstant(my_id, timeline.current_time+action_delay);
 
 	    	console.log(me.serialize());
             console.log(me.hash());
-	    }else if(key_code == 39 || character == "D" ){// Right
+	    }else if(key_code == 39  ){// Right
 	    	
-	    }else if(key_code == 40 || character == "S"){// Down
+	    }else if(key_code == 40 ){// Down
 	    	
             //console.log("Debug hash data:");
             //console.log(debug_hash_data);
@@ -204,7 +226,9 @@ function canvasApp() {
             console.log("Debug timeline after update:");
             console.log(debug_timeline);
 
-	    }
+	    }else if(key_code == 13){ // Enter
+            sendClicked();
+        }
 	}
 	
 	function mouseDownListener(evt) {
@@ -284,6 +308,15 @@ function canvasApp() {
 	init(); // Start the canvasApp.
 }
 
+function sendClicked(){
+    let me = timeline.getInstant(my_id, timeline.current_time+action_delay);
+    let text_box = document.getElementById("textbox");
+    if(text_box.value != ""){
+        timeline.addEvent(new AddChatLine(timeline.current_time+action_delay,  {chat_id:chat_id, line:me.name+": "+text_box.value})) ;
+        text_box.value = "";
+    }
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -291,12 +324,16 @@ function sleep(ms) {
 </script>
 </head>
 <body>
-	<div style="top: 50px; text-align: center">
+<div style="margin: auto; width: 1280px">
+	<div style="top: 50px">
 		<canvas id="canvasOne" width="1280" height="720"
 			oncontextmenu="return false;">
 			Your browser does not support HTML5 canvas.
-		</canvas><br>
-		
+		</canvas>
+        <p id="chat" style="text-align:left">Connecting...<br><br><br><br></p>
+        <input id="textbox" type="text" size="170">
+		<button id="send" onClick="sendClicked()">Send</button>
 	</div>
+</div>
 </body>
 </html>

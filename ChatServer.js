@@ -31,9 +31,10 @@ var tserver ;
 
 function setUpGame(){
     timeline = new Timeline();
-    //console.log("Starting timeline:");
-    //console.log(timeline);
-    // TODO set up chat log
+    let chat = new ChatLog();
+    chat.max_lines = 5;
+    chat.chat = [ "Welcome to the server!"];
+    timeline.addObject(chat,0,0);
 }
 
 function tick(){
@@ -44,6 +45,5 @@ function tick(){
 }
 
 setUpGame();
-
 tserver = new TServer(timeline, port, WebSocket);
 setInterval(tick, 1000*interval);
