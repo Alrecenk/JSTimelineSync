@@ -24,7 +24,7 @@ include('./events/UpdatePlayerVelocity.js');
 
 var interval = 1.0/30 ; // step size in seconds
 var timeline ;
-var kept_time = 3 ;
+var last_run_time = new Date().getTime();
 
 var port = 8081;
 var tserver ;
@@ -37,7 +37,10 @@ function setUpGame(){
 }
 
 function tick(){
-    timeline.run(interval);
+    let time = new Date().getTime() ;
+    let real_interval = (time-last_run_time)/1000.0;
+    last_run_time = time ;
+    timeline.run(real_interval);
 }
 
 setUpGame();

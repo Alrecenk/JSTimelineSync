@@ -14,6 +14,7 @@ class Timeline{
 
     static sync_base_age = 1 ; // time in seconds that synced base time is behind current time
     static base_age = 2; // Amount of history to keep on the timeline
+    static execute_buffer = 0.5 ;
 
     constructor(time = 0){
         this.current_time = time ;
@@ -181,7 +182,8 @@ class Timeline{
         //TODO we could be sending events that haven't been spawned yet but will be due to clock differences
         for(let k = 0; k < this.events.length; k++){
             if(this.events[k].time >= base_time){
-                if(!has_event_hash[this.events[k].hash()]){
+                // Don't sendi f they have it or if they have the event that spawned it
+                if(!has_event_hash[this.events[k].hash()] && !has_event_hash[this.events[k].spawned_by]){
                     event_updates.push(this.events[k].serialize()); // TODO duplicate serialize
                 }
             }
@@ -246,11 +248,12 @@ class Timeline{
                 }
             }
 
-            if(update.current_time > this.current_time){
+            if(Math.abs(update.current_time-this.current_time) > Timeline.execute_buffer){
                 this.current_time = update.current_time;
-                this.executeToTime(this.current_time);
-                this.advanceBaseTime(this.current_time-Timeline.base_age);
+                this.executeToTime(this.current_time + Timeline.execute_buffer);
+                this.advanceBaseTime(this.current_time - Timeline.base_age);
             }
+
         }
     }
 
@@ -291,8 +294,8 @@ class Timeline{
 
     run(interval){
         this.current_time += interval;
-        this.executeToTime(this.current_time);
-        this.advanceBaseTime(this.current_time-Timeline.base_age);
+        this.executeToTime(this.current_time + Timeline.execute_buffer);
+        this.advanceBaseTime(this.current_time - Timeline.base_age);
     }
 
     // execute events and compute object instants up to new executed_time

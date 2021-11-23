@@ -109,25 +109,25 @@ function updateEmptyTimeline(){
     console.assert(Object.keys(t1hash2.base).length == 1, "Stepped timeline hash has wrong nuber of objects", t1hash2);
 
     let update2 = timeline.getUpdateFor(t2hash2, sync_base_time);
-    console.assert(update2.events.length == 2, "Update 2 has wrong number of events!", update2);
+    console.assert(update2.events.length == 1, "Update 2 has wrong number of events!", update2);
     console.assert(Object.keys(update2.base).length == 1, "Update 2 has wrong number of objects!", update2) ;
     timeline2.applyUpdate(update2, true);
     let t2hash3 = timeline2.getHashData(sync_base_time) ;
-    console.assert(t2hash3.events.length == 3, "Post-update2 hash has wrong number of events.", t2hash3.events);
+    console.assert(t2hash3.events.length == 2, "Post-update2 hash has wrong number of events.", t2hash3.events);
     console.assert(Object.keys(t2hash3.base).length == 1, "Post-update2 hash has wrong number of objects.", t2hash3.base);
 }
 function synchronizeChangingVelocity(){
     
     let server = getPlayerMoveStart() ;
     server.run(1); // Run for a second
-    console.assert(server.get(0).x == 10, "Player has not moved the correct amount in initialzation ", server.get(0));
+    console.assert(server.getInstant(0, server.current_time).x == 10, "Player has not moved the correct amount in initialzation ", server.get(0));
     // synchronize in timeline2
     let client = new Timeline(0);
     // create a starting synchronization packet from timeline 1 to 2
     let packet = {update:server.getUpdateFor(client.getHashData(0), 0), hash_data:server.getHashData(0)};
     // apply packet to timeline 2 and generate packet for timeline 1
     packet = client.synchronize(packet.hash_data, packet.update, true, client.current_time-Timeline.sync_base_age);
-    console.assert(client.get(0).x == 10, "Player did not sync to the correct location ", client.get(0));
+    console.assert(client.getInstant(0, client.current_time).x == 10, "Player did not sync to the correct location ", client.get(0));
     // create an event 1 second in the future to change the velocity
     client.addEvent(new UpdatePlayerVelocity(2.01, {player_id:0, vx:0, vy:10}));
     // apply packet to server
