@@ -35,13 +35,16 @@ var interval = 1/60.0;
 var base_age = 2 ;
 
 var my_id = -1 ;
-var player_radius = 40;
-var player_speed = 500;
+var player_radius = 30;
+var player_speed = 800;
 var player_fill = "#D0D0D0";
 var player_stroke = "#D000D0" ;
 var stroke_size = 4 ;
+var visual_buffer = 0.07;
+var action_delay = 0.07;
+var player_ahead = 0.035;
 
-
+var last_run_time = new Date().getTime();
 
 
 async function windowLoadHandler() {
@@ -111,7 +114,12 @@ function canvasApp() {
         let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
         //console.log(IDs)
         for(let id in IDs){
-            let p = timeline.get(id) ;
+            let p ;
+            if(id == my_id){
+                p = timeline.getInstant(id, timeline.current_time + player_ahead) ;
+            }else{
+                p = timeline.getInstant(id, timeline.current_time - visual_buffer) ;
+            }
             if(p==null){
                 continue ; //TODO print error
             }
@@ -132,25 +140,29 @@ function canvasApp() {
         if(mouse_down){
             let vx = 0 ; // if click invalid then default to stop
             let vy = 0 ;
-            let me = timeline.get(my_id);
+            let me = timeline.getInstant(my_id, timeline.current_time+action_delay);
             let dx = mouse_x - me.x;
             let dy = mouse_y - me.y;
             let d2 = dx*dx+ dy*dy ;
-            if(d2 > player_radius*player_radius){ // not clicking on self
+            if(d2 > 100){ // not there
                 let d1 = Math.sqrt(d2);
                 vx = dx * player_speed/d1;
                 vy = dy * player_speed/d1;
             }
             // Only mak an event if it has sufficiently changed
-            if(Math.sqrt((vx-last_vx)*(vx-last_vx) + (vy-last_vy)*(vy-last_vy))/player_speed > 0.4){
+            if(Math.sqrt((vx-last_vx)*(vx-last_vx) + (vy-last_vy)*(vy-last_vy))/player_speed > 0.1){
                 last_vx = vx;
                 last_vy = vy ;
-                timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time+0.01,  {player_id:my_id, vx:vx, vy:vy})) ;
+                timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time+action_delay,  {player_id:my_id, vx:vx, vy:vy})) ;
             }
         }
 
         // Advance time
-        timeline.run(interval);
+        let time = new Date().getTime()
+        let real_interval = (time-last_run_time)/1000.0;
+        last_run_time = time ;
+        timeline.run(real_interval);
+        
 		// Draw screen.
 		drawScreen();
 	}
@@ -166,7 +178,10 @@ function canvasApp() {
         if(key_code == 37 || character == "A"){ // Left
 	    	
 	    }else if(key_code == 38 || character == "W"){// Up
-	    	
+            let me = timeline.getInstant(my_id, timeline.current_time+action_delay);
+
+	    	console.log(me.serialize());
+            console.log(me.hash());
 	    }else if(key_code == 39 || character == "D" ){// Right
 	    	
 	    }else if(key_code == 40 || character == "S"){// Down
@@ -200,7 +215,7 @@ function canvasApp() {
 		mouse_button = evt.button ;
         let vx = 0 ; // if click invalid then default to stop
         let vy = 0 ;
-        let me = timeline.get(my_id);
+        let me = timeline.getInstant(my_id, timeline.current_time+action_delay);
         let dx = mouse_down_x - me.x;
         let dy = mouse_down_y - me.y;
         let d2 = dx*dx+ dy*dy ;
@@ -209,7 +224,7 @@ function canvasApp() {
             vx = dx * player_speed/d1;
             vy = dy * player_speed/d1;
         }
-        timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time, {player_id:my_id, vx:vx, vy:vy})) ;
+        timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time+action_delay, {player_id:my_id, vx:vx, vy:vy})) ;
 	}
 	
 	function mouseUpListener(evt) {
@@ -225,7 +240,7 @@ function canvasApp() {
         }
 		
         // Stop on mouse release
-        timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time,  {player_id:my_id, vx:0, vy:0})) ;
+        timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time+action_delay,  {player_id:my_id, vx:0, vy:0})) ;
 	}
 
 	function mouseMoveListener(evt) {
