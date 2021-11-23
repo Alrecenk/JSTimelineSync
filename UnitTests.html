@@ -109,11 +109,11 @@ function updateEmptyTimeline(){
     console.assert(Object.keys(t1hash2.base).length == 1, "Stepped timeline hash has wrong nuber of objects", t1hash2);
 
     let update2 = timeline.getUpdateFor(t2hash2, sync_base_time);
-    console.assert(update2.events.length == 2, "Update 2 has wrong number of events!", update2);
+    console.assert(update2.events.length == 1, "Update 2 has wrong number of events!", update2);
     console.assert(Object.keys(update2.base).length == 1, "Update 2 has wrong number of objects!", update2) ;
     timeline2.applyUpdate(update2, true);
     let t2hash3 = timeline2.getHashData(sync_base_time) ;
-    console.assert(t2hash3.events.length == 3, "Post-update2 hash has wrong number of events.", t2hash3.events);
+    console.assert(t2hash3.events.length == 2, "Post-update2 hash has wrong number of events.", t2hash3.events);
     console.assert(Object.keys(t2hash3.base).length == 1, "Post-update2 hash has wrong number of objects.", t2hash3.base);
 }
 function synchronizeChangingVelocity(){
