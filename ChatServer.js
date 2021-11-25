@@ -22,9 +22,7 @@ include('./events/MovePlayer.js');
 include('./events/AddChatLine.js');
 include('./events/UpdatePlayerVelocity.js');
 
-var interval = 1.0/30 ; // step size in seconds
 var timeline ;
-var last_run_time = new Date().getTime();
 
 var port = 8081;
 var tserver ;
@@ -38,12 +36,9 @@ function setUpGame(){
 }
 
 function tick(){
-    let time = new Date().getTime() ;
-    let real_interval = (time-last_run_time)/1000.0;
-    last_run_time = time ;
-    timeline.run(real_interval);
+    timeline.run();
 }
 
 setUpGame();
 tserver = new TServer(timeline, port, WebSocket);
-setInterval(tick, 1000*interval);
+setInterval(tick, 10);

@@ -11,10 +11,14 @@ class Timeline{
     last_instant_time ; // Time of writing of the last instant read with get or getInstant
     get_instances = [] ; // a temporary variable to hold references to objects returned by get
     events_spawned = []; // A temporary variable to track what events are spawned by another running event
+    last_run_time ; // the real clock time in milliseconds of the last time the run method was called
+    last_update_current_time ; // the current_time of the last update received used to measure game time latency
 
-    static sync_base_age = 1 ; // time in seconds that synced base time is behind current time
+    static sync_base_age = 1 ; // time that synced base time is behind current time
     static base_age = 2; // Amount of history to keep on the timeline
-    static execute_buffer = 0.5 ;
+    static execute_buffer = 0.5 ; // How far ahead of the current time to predictively execute instructions
+    static smooth_clock_sync_rate = 0.1; // how fast to adjust client clock time when it's close to synchronized
+    static clock_sync_latency_fraction = 0.5 ; // Fraction of round trip latency to adjust client clock to
 
     constructor(time = 0){
         this.current_time = time ;
@@ -22,8 +26,8 @@ class Timeline{
         //this.base_time = time;
         this.instants = {};
         this.instant_read_index = {};
-        this.events = []; // TODO use a more efficient structure for random insert and sorted access (like a tree)
-        //this.base_state = new HashList();
+        this.events = [];
+        this.last_run_time = new Date().getTime() ;
     }
 
     // returns an editable copy of an object's value at the current time
@@ -248,14 +252,23 @@ class Timeline{
                 }
             }
 
-            if(Math.abs(update.current_time-this.current_time) > Timeline.execute_buffer){
-                this.current_time = update.current_time;
-                this.executeToTime(this.current_time + Timeline.execute_buffer);
-                this.advanceBaseTime(this.current_time - Timeline.base_age);
+            // Sync clock to server time + half round trip latency
+            if(this.last_update_current_time){
+                let target_time = update.current_time + (update.current_time - this.last_update_current_time)*Timeline.clock_sync_latency_fraction;
+                // If we're totally out of sync then snap back into sync
+                if(Math.abs(target_time-this.current_time) > Timeline.sync_base_age){
+                    this.current_time = target_time ;
+                    this.executeToTime(this.current_time + Timeline.execute_buffer);
+                    this.advanceBaseTime(this.current_time - Timeline.base_age);
+                }else{ // if we're only a little out of sync then gradually adjust clock to stay synced
+                    this.current_time = this.current_time * (1-Timeline.smooth_clock_sync_rate) + target_time * Timeline.smooth_clock_sync_rate;
+                }
             }
-
         }
+        this.last_update_current_time = update.current_time;
     }
+
+    
 
      // advances the base time, deleting all but one instant before base_time for each variable
     // Does not execute events, so new_base_time cannot exceed executed_time
@@ -292,7 +305,12 @@ class Timeline{
         }
     }
 
-    run(interval){
+    run(interval = undefined){
+        let time = new Date().getTime() ;
+        if(!interval){
+            interval = (time-this.last_run_time)/1000.0;
+        }
+        this.last_run_time = time ;
         this.current_time += interval;
         this.executeToTime(this.current_time + Timeline.execute_buffer);
         this.advanceBaseTime(this.current_time - Timeline.base_age);
