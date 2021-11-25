@@ -10,6 +10,10 @@ class TClient{
     socket = null ; 
     active = false;
 
+    // time to wait before responding (can be used with TServer response_time to simulate latency for testing)
+    sync_delay = 0; 
+    update_delay = 0 ;
+
     constructor(timeline, port){
         client_global = this ;
         this.timeline = timeline ;
@@ -18,9 +22,8 @@ class TClient{
         this.socket.onmessage = function(message) {
             client_global.receive(message.data);
         };
+        this.timeline.client = this ;
     }
-
-
 
     ready(){
         return this.socket.readyState == WebSocket.OPEN ;
@@ -50,18 +53,30 @@ class TClient{
     }
 
     receive(message){
-        //console.log("Got message from server:" + message);
-        //console.log(this.timeline) ;
+        setTimeout(this.respond, this.sync_delay, message);
+    }
+
+    async respond(message){
         let in_packet = JSON.parse(message);
-        let out_packet= this.timeline.synchronize(in_packet.hash_data, in_packet.update, true, this.timeline.current_time-Timeline.sync_base_age);
-        this.send(JSON.stringify(out_packet));
-        this.connected = true;
+        if(in_packet.hash_data && in_packet.update){ // A Sync packet
+            let out_packet = client_global.timeline.synchronize(in_packet.hash_data, in_packet.update, true, client_global.timeline.current_time-Timeline.sync_base_age);
+            client_global.send(JSON.stringify(out_packet));
+            // Not fully connected until clock has been sycnrhonzied, which takes 2 hops
+            client_global.connected |= client_global.timeline.current_time >= in_packet.update.current_time;
+        }else if(in_packet.update){ // update only packet doesn't respond
+            client_global.timeline.applyUpdate(in_packet.update, false);
+        }
     }
 
     send(message){
-        //console.log("sent message: " + message);
-        this.socket.send(message);
+        client_global.socket.send(message);
     }
+
+    sendUpdate(message){
+        setTimeout(this.send, this.update_delay, message);
+    }
+
+
 
     
 }

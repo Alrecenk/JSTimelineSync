@@ -41,9 +41,9 @@ var player_speed = 1000;
 var player_fill = "#D0D0D0";
 var player_stroke = "#D000D0" ;
 var stroke_size = 4 ;
-var visual_buffer = 0.07;
-var action_delay = 0.06;
-var player_ahead = 0.045;
+var visual_buffer = 0.1;
+var action_delay = 0.1;
+var player_ahead = 0.1;
 
 var last_chat_text = "";
 
@@ -95,6 +95,8 @@ function canvasApp() {
 	}
 	
 	function setupGame(){
+        interface_buttons["latency_label"] = new InterfaceButton(theCanvas.width-200, 10, 200, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+
 		// Initialization stuff for canvas app goes here.
         my_id = timeline.getNextID(); // TODO race condition: this will be wrong if some other addObject event gets in before this one runs
 		let player = new Player();
@@ -114,12 +116,18 @@ function canvasApp() {
 		context.fillStyle = "#000000";
 		context.fillRect(0,0,theCanvas.width,theCanvas.height);
 		
+        interface_buttons["latency_label"].text = "latency:" + Math.round(timeline.latency*1000) +" ms";
+
 		// Draw any buttons currently on the interface.
 		for (var button_name in interface_buttons) {
 	        if (interface_buttons.hasOwnProperty(button_name)) {
 	        	interface_buttons[button_name].draw(context);
 	        }
 	    }
+
+        visual_buffer = timeline.latency*2 ;
+        player_ahead = timeline.latency*2 ;
+        action_delay = timeline.latency*2 ;
 
         let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
         //console.log(IDs)

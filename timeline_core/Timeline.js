@@ -10,16 +10,18 @@ class Timeline{
     instant_read_index ; // map<id,int> points to position in instant sub vectors last read (starting from here allows fast access for temporally coherent reads)
     last_instant_time ; // Time of writing of the last instant read with get or getInstant
     get_instances = [] ; // a temporary variable to hold references to objects returned by get
-    events_spawned = []; // A temporary variable to track what events are spawned by another running event
+    events_spawned = undefined; // A temporary variable to track what events are spawned by another running event
     last_run_time ; // the real clock time in milliseconds of the last time the run method was called
     last_update_current_time ; // the current_time of the last update received used to measure game time latency
+    latency=-1;
+    client = undefined; // A link to a TClient object if this timeline is attached to one
+    aggressive_event_sending = true; // Whether user generated events are sent to the server aggressively
 
     static sync_base_age = 1 ; // time that synced base time is behind current time
     static base_age = 2; // Amount of history to keep on the timeline
     static execute_buffer = 0.5 ; // How far ahead of the current time to predictively execute instructions
-    static smooth_clock_sync_rate = 0.1; // how fast to adjust client clock time when it's close to synchronized
-    static clock_sync_latency_fraction = 0.5 ; // Fraction of round trip latency to adjust client clock to
-
+    static smooth_clock_sync_rate = 0.2; // how fast to adjust client clock time when it's close to synchronized
+    
     constructor(time = 0){
         this.current_time = time ;
         this.executed_time = time ;
@@ -70,9 +72,13 @@ class Timeline{
         }
         this.events.splice(place,0,new_event);
         this.next_execute = Math.min(place,this.next_execute);
-        //console.log(this.events);
         //track events spawned from other events so they can be deleted if a rerun doesn't spawn them
-        this.events_spawned.push(new_event);
+        if(this.events_spawned){
+            this.events_spawned.push(new_event);
+        }else if(this.aggressive_event_sending && this.client && this.client.connected){ // Send events created outside other events (i.e. player actions)
+            let update = {current_time: this.current_time, events:[new_event.serialize()]} ;
+            this.client.sendUpdate(JSON.stringify({update:update}));
+        }
     }
 
     // Add an object
@@ -103,6 +109,7 @@ class Timeline{
         // Incorporate edited values fetched with get into the timeline instants
         for(let read_id in this.get_instances){
             event.read_ids[read_id] = true;
+            //TODO don't hard crash if an event attempts to read somthing that is null
             if(this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.last_hash){ // object was edited
                 event.write_ids[read_id] = true;
                 //Delete all instants after edited one
@@ -144,7 +151,7 @@ class Timeline{
         }
         
         event.done = true ;
-        
+        this.events_spawned = undefined;
         return true;
     }
 
@@ -254,7 +261,8 @@ class Timeline{
 
             // Sync clock to server time + half round trip latency
             if(this.last_update_current_time){
-                let target_time = update.current_time + (update.current_time - this.last_update_current_time)*Timeline.clock_sync_latency_fraction;
+                this.latency = (update.current_time - this.last_update_current_time)*0.5;
+                let target_time = update.current_time + this.latency;
                 // If we're totally out of sync then snap back into sync
                 if(Math.abs(target_time-this.current_time) > Timeline.sync_base_age){
                     this.current_time = target_time ;
