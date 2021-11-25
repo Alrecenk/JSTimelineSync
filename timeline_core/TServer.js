@@ -6,7 +6,7 @@ class TServer{
 
     web_socket_server ;
 
-    response_delay = 10; // Time to wait before responding (reduces load from lowl latency clients)
+    response_delay = 0; // Time to wait before responding (reduces load from low latency clients)
 
 
     constructor(timeline, port, WebSocket){
@@ -24,21 +24,19 @@ class TServer{
     }
 
     receive(message, socket, timeline){
-        //console.log("Received message => " + message);
-
         setTimeout(this.respond, this.response_delay, message, socket, timeline);
-        
     }
 
     respond(message, socket, timeline){
         //console.log(this);
         let in_packet = JSON.parse(message);
-        //console.log(in_packet.update);
-        let out_packet = timeline.synchronize(in_packet.hash_data, in_packet.update, false, timeline.current_time-Timeline.sync_base_age);
-        //console.log(timeline);
-        socket.send(JSON.stringify(out_packet));
-
-        //let response = "got: " + message;
-        //socket.send(response);
+        if(in_packet.hash_data && in_packet.update){ // A Sync packet
+            let out_packet = timeline.synchronize(in_packet.hash_data, in_packet.update, false, timeline.current_time-Timeline.sync_base_age);
+            socket.send(JSON.stringify(out_packet));
+        }else if(in_packet.update){ // update only packet doesn't respond
+            timeline.applyUpdate(in_packet.update, false);
+        }else{
+            console.log(in_packet);
+        }
     }
 }
