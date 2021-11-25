@@ -1,4 +1,3 @@
-var response_delay = 10;
 // A wrapper class for a Node server providing timeline sync over a websocket
 class TServer{
     
@@ -6,6 +5,8 @@ class TServer{
     port;
 
     web_socket_server ;
+
+    response_delay = 10; // Time to wait before responding (reduces load from lowl latency clients)
 
 
     constructor(timeline, port, WebSocket){
@@ -25,7 +26,7 @@ class TServer{
     receive(message, socket, timeline){
         //console.log("Received message => " + message);
 
-        setTimeout(this.respond, response_delay, message, socket, timeline);
+        setTimeout(this.respond, this.response_delay, message, socket, timeline);
         
     }
 

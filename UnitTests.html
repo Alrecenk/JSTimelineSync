@@ -127,6 +127,7 @@ function synchronizeChangingVelocity(){
     let packet = {update:server.getUpdateFor(client.getHashData(0), 0), hash_data:server.getHashData(0)};
     // apply packet to timeline 2 and generate packet for timeline 1
     packet = client.synchronize(packet.hash_data, packet.update, true, client.current_time-Timeline.sync_base_age);
+    client.run(1); // Run the server's current time to catch up since clock sync is off for unit tests
     console.assert(client.getInstant(0, client.current_time).x == 10, "Player did not sync to the correct location ", client.get(0));
     // create an event 1 second in the future to change the velocity
     client.addEvent(new UpdatePlayerVelocity(2.01, {player_id:0, vx:0, vy:10}));
@@ -161,6 +162,8 @@ function synchronizeTwoPlayersChanging(){
 }
 
 function runAllTests(){
+    Timeline.smooth_clock_sync_rate = 0 ; // Turn off clocksmoothin for unit tests
+    Timeline.clock_sync_latency_fraction = 0 ; // Turn off latency estimation for clock syncing
     playerSerialize();
     moveSerialize();
     addPlayerAndMove();

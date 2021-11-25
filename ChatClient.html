@@ -37,15 +37,13 @@ var base_age = 2 ;
 var my_id = -1 ;
 var chat_id = -1 ;
 var player_radius = 30;
-var player_speed = 800;
+var player_speed = 1000;
 var player_fill = "#D0D0D0";
 var player_stroke = "#D000D0" ;
 var stroke_size = 4 ;
 var visual_buffer = 0.07;
-var action_delay = 0.07;
-var player_ahead = 0.035;
-
-var last_run_time = new Date().getTime();
+var action_delay = 0.06;
+var player_ahead = 0.045;
 
 var last_chat_text = "";
 
@@ -82,7 +80,7 @@ function canvasApp() {
 		window.addEventListener("mousemove", mouseMoveListener, false);
 		window.addEventListener("mouseup", mouseUpListener, false);
 		window.addEventListener('keydown',keyListener,false);
-		setInterval(timeListener, 1000*interval); // Timer
+        requestAnimationFrame(timeListener);
 
         // Execute a function when the user releases a key on the keyboard
         document.getElementById("textbox").addEventListener("keyup", function(event) {
@@ -166,7 +164,7 @@ function canvasApp() {
             let dx = mouse_x - me.x;
             let dy = mouse_y - me.y;
             let d2 = dx*dx+ dy*dy ;
-            if(d2 > 100){ // not there
+            if(d2 > 225){ // not there
                 let d1 = Math.sqrt(d2);
                 vx = dx * player_speed/d1;
                 vy = dy * player_speed/d1;
@@ -180,13 +178,11 @@ function canvasApp() {
         }
 
         // Advance time
-        let time = new Date().getTime()
-        let real_interval = (time-last_run_time)/1000.0;
-        last_run_time = time ;
-        timeline.run(real_interval);
+        timeline.run();
         
 		// Draw screen.
 		drawScreen();
+        requestAnimationFrame(timeListener);
 	}
 	
 	function keyListener(evt) {
