@@ -30,17 +30,13 @@ class TObject{
     static getObjectBySerialized(class_name, id, serial){
         let obj ;
         let es = "obj = new "+class_name+"();" ;
-        //console.log(es);
         eval(es); // TODO got to be a better way also every class needs an empty constructor for this to work
-        //console.log("after eval");
-        //console.log(obj);
         obj.set(serial);
         obj.ID = id ;
         return obj ;
     }
 
     static copy(obj){
-        //console.log(obj);
         return this.getObjectBySerialized(obj.constructor.name, obj.ID, obj.serialize());
     }
 }

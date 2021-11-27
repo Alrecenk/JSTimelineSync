@@ -8,22 +8,22 @@ class TEvent{
 
     read_ids = {};
     write_ids = {};
-    spawned_by = undefined; // The hash of the event that created this event if it was created by another event
+
+    serial ;
+    hash ;
 
     constructor(time, params){
         this.time = time;
         this.parameters = params;
     }
 
-    serialize(){
-        return JSON.stringify({event:this.constructor.name, time:this.time, spawned_by:this.spawned_by, parameters:this.parameters});
+    computeSerial(serial = undefined, hash = undefined){
+        this.serial = serial ? serial : this.serialize();
+        this.hash = hash ? hash : TEvent.hashSerial(this.serial);
     }
 
-    hash(){
-        let serial = this.serialize();
-        //TODO is this hash actually any good here?
-        this.last_hash = TEvent.hashSerial(serial)              
-        return this.last_hash ;
+    serialize(){
+        return JSON.stringify({event:this.constructor.name, time:this.time, spawned_by:this.spawned_by, parameters:this.parameters});
     }
 
     run(timeline){
@@ -32,14 +32,14 @@ class TEvent{
     }
 
     // Makes it possible to initialize an object by the string name of its class
-    static getEventBySerialized(serial){
+    static getEventBySerialized(serial, hash = undefined){
         let p = JSON.parse(serial);
         let ev ;
-        //TODO this is so bad
-        let es = "ev = new "+p.event+"(" + p.time +", " + JSON.stringify(p.parameters) +");" ;
-        //console.log(es);
+        //TODO don't use eval
+        let es = "ev = new "+p.event+"(" + p.time +"," + JSON.stringify(p.parameters) +");" ;
         eval(es); // TODO got to be a better way also every class needs an empty constructor for this to work
         ev.spawned_by = p.spawned_by;
+        ev.computeSerial(serial, hash);
         return ev ;
     }
 

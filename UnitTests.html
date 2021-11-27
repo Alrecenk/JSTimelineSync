@@ -47,7 +47,7 @@ function moveSerialize(){
     let serial = move.serialize();
     console.assert(serial == `{"event":"MovePlayer","time":0.1,"parameters":{"player_id":9,"interval":0.1}}`, "Move failed serialize: " + serial);
     let np = TEvent.getEventBySerialized(serial) ;
-    let serial2 = np.serialize();
+    let serial2 = np.serial;
     console.assert(serial2 == serial, "Move failed reserialize: " + serial2 +" != " + serial);
 }
 

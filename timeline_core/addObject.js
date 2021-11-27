@@ -15,7 +15,5 @@ class addObject extends TEvent{
         this.write_ids[obj.ID] = true; 
         this.read_ids = {};
         this.read_ids[obj.ID] = true;  // TODO unclear how this route around the core algorithm interacts with rollback, could be a bug source
-
-        //console.log(" Event("+this.time+"): Added " + this.parameters.type + " to ID " + obj.ID);
     }
 }

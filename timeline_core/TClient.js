@@ -11,8 +11,8 @@ class TClient{
     active = false;
 
     // time to wait before responding (can be used with TServer response_time to simulate latency for testing)
-    sync_delay = 0; 
-    update_delay = 0 ;
+    sync_delay = 100; 
+    update_delay = 100 ;
 
     constructor(timeline, port){
         client_global = this ;
