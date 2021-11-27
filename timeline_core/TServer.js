@@ -6,7 +6,7 @@ class TServer{
 
     web_socket_server ;
 
-    response_delay = 100; // Time to wait before responding (reduces load from low latency clients)
+    response_delay = 10; // Time to wait before responding (reduces load from low latency clients)
 
 
     constructor(timeline, port, WebSocket){
