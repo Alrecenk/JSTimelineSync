@@ -117,14 +117,13 @@ class Timeline{
         // Incorporate edited values fetched with get into the timeline instants
         for(let read_id in this.get_instances){
             event.read_ids[read_id] = true;
-            //TODO don't hard crash if an event attempts to read somthing that is null
-            if(this.get_instances[read_id] && this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.last_hash){ // object was edited
+            if(this.get_instances[read_id] && 
+                this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.last_hash){ // object was edited
                 event.write_ids[read_id] = true;
                 //Delete all instants after edited one
                 this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);
                 //Add new edit to the end of instants at this time
                 this.instants[read_id].push({time:this.executed_time, obj:this.get_instances[read_id]});
-
                 data_dirtied[read_id] = true; // dirty all IDs we edited this time
             }
         }
@@ -182,7 +181,7 @@ class Timeline{
 
     synchronize(other_hashdata, my_update, allow_base_change){
         this.applyUpdate(my_update, allow_base_change);
-        let base_time = this.current_time-Timeline.sync_base_age ;
+        let base_time = this.current_time - Timeline.sync_base_age ;
         let other_update = this.getUpdateFor(other_hashdata, base_time);
         return {update:other_update, hash_data:this.getHashData(base_time)};
     }
@@ -196,18 +195,16 @@ class Timeline{
         for(let k=0;k<other_hash_data.events.length; k++){
             has_event_hash[other_hash_data.events[k]] = true;
         }
-
         for(let k = 0; k < this.events.length; k++){
             if(this.events[k].time >= base_time){
                 // Don't send if they have it or if they have the event that spawned it
                 if(!has_event_hash[this.events[k].hash] && !has_event_hash[this.events[k].spawned_by]){
-                    
                     event_updates.push(this.events[k].serial);
                 }
+                // Don't send events spawned by events spawned by events the server has ad infinitum
                 has_event_hash[TEvent.hashSerial(this.events[k].serial)] = true;  // TODO cache hash compute
             }
         }
-
         let obj_updates = {};
         for(let id in this.instants){
             let base_obj = this.getInstant(id, base_time) ;
@@ -272,7 +269,6 @@ class Timeline{
             if(this.last_update_current_time){
                 this.latency = (update.current_time - this.last_update_current_time)*0.5;
                 let target_time = update.current_time + this.latency;
-
                 // If we're totally out of sync then snap back into sync
                 if(Math.abs(target_time-this.current_time) > Timeline.sync_base_age){
                     this.current_time = target_time ;
@@ -292,7 +288,6 @@ class Timeline{
     // Does not execute events, so new_base_time cannot exceed executed_time
     advanceBaseTime(new_base_time){
         for(let id in this.instants){
-            
             // Find first index past new_base time
             let i = 0 ;
             while(i < this.instants.length && this.instants[id][i].time <= new_base_time){

@@ -19,9 +19,19 @@ class TServer{
         this.web_socket_server.on('connection', ws => {
             console.log("New connection!");
             TServer.clients.push(ws);
+            //TODO add an API hook for server app to do something on connect
             ws.on('message', message => {
                 this.receive(message, ws, this.timeline) ;
             })
+            ws.on('close', function(){
+                for(let k=0; k < TServer.clients.length;k++){
+                    if(TServer.clients[k] == ws){
+                        TServer.clients.splice(k,1);
+                        break;
+                    }
+                }
+                //TODO add an API hook for server app to do something on client disconnect
+            });
         });
         console.log("Timeline Sync server opened on port " + port);
     }
@@ -50,7 +60,6 @@ class TServer{
 
     forwardAggressiveEvents(){
         for(let k=0;k<TServer.clients.length;k++){
-            //TODO check if client still connected
             let update_events = [];
             for(let e=0;e<TServer.quick_sends.length;e++){
                 if(TServer.quick_sends[e].source != TServer.clients[k]){ // don't send event back to source
