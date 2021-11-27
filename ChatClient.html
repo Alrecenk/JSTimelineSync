@@ -99,11 +99,11 @@ function canvasApp() {
 
 		// Initialization stuff for canvas app goes here.
         my_id = timeline.getNextID(); // TODO race condition: this will be wrong if some other addObject event gets in before this one runs
+        
 		let player = new Player();
         player.x = 200 ;
         player.y = 200 ;
         player.name = "Player " + my_id  ; // TODO let the player input this
-        
         timeline.addObject(player, my_id, timeline.current_time) ;
         timeline.addEvent(new MovePlayer(timeline.current_time+0.1, {player_id:my_id, interval:interval }));
 	}
@@ -124,8 +124,8 @@ function canvasApp() {
 	    }
 
         visual_buffer = timeline.latency*2 ;
-        player_ahead = timeline.latency*2 ;
-        action_delay = timeline.latency*2 ;
+        player_ahead = timeline.latency*3 ;
+        action_delay = timeline.latency*3 ;
 
         let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
         for(let id in IDs){

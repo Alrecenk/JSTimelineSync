@@ -37,6 +37,9 @@ function setUpGame(){
 
 function tick(){
     timeline.run();
+    if(TServer.aggressive_event_forward){
+        tserver.forwardAggressiveEvents();
+    }
 }
 
 setUpGame();
