@@ -105,8 +105,6 @@ function canvasApp() {
         player.name = "Player " + my_id  ; // TODO let the player input this
         
         timeline.addObject(player, my_id, timeline.current_time) ;
-        //console.log("End of set up game:");
-        //console.log(timeline.events[0]);
         timeline.addEvent(new MovePlayer(timeline.current_time+0.1, {player_id:my_id, interval:interval }));
 	}
 	
@@ -130,7 +128,6 @@ function canvasApp() {
         action_delay = timeline.latency*2 ;
 
         let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
-        //console.log(IDs)
         for(let id in IDs){
             let p ;
             if(id == my_id){

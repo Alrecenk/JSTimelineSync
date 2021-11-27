@@ -73,11 +73,16 @@ class Timeline{
         this.events.splice(place,0,new_event);
         this.next_execute = Math.min(place,this.next_execute);
         //track events spawned from other events so they can be deleted if a rerun doesn't spawn them
-        if(this.events_spawned){
-            this.events_spawned.push(new_event);
+        if(this.executing_hash){
+            new_event.spawned_by = this.executing_hash ;
+            new_event.computeSerial();
+            new_event.just_spawned = true;
         }else if(this.aggressive_event_sending && this.client && this.client.connected){ // Send events created outside other events (i.e. player actions)
-            let update = {current_time: this.current_time, events:[new_event.serialize()]} ;
+            new_event.computeSerial();
+            let update = {current_time: this.current_time, events:[new_event.serial]} ;
             this.client.sendUpdate(JSON.stringify({update:update}));
+        }else{
+            new_event.computeSerial();
         }
     }
 
@@ -101,7 +106,7 @@ class Timeline{
         }
         this.executed_time = event.time ;
         this.get_instances = {};
-        this.events_spawned = [];
+        this.executing_hash = event.hash;
         event.run(this);
         event.read_ids = {};
         let data_dirtied = event.write_ids; // make sure to dirty data we wrote from a past execution that might not be written this time
@@ -122,19 +127,16 @@ class Timeline{
         }
 
         //Delete all events spawned by a previous run of this event
-        let executing_hash = event.hash();
         let removed_spawners = {};
-        removed_spawners[executing_hash] = true;
+        removed_spawners[this.executing_hash] = true;
         for(let e = this.next_execute ; e < this.events.length;e++){ // TODO could probably save this and avoid a walk over all future events
-            if(removed_spawners[this.events[e].spawned_by]){
-                removed_spawners[this.events[e].hash()] = true ; // remove events spawned by events spawned by reexecuted event ad infinitum
+            if(this.events[e].just_spawned){ // skip removal if we just made it
+                this.events[e].just_spawned = undefined ; 
+            }else if(removed_spawners[this.events[e].spawned_by]){
+                removed_spawners[this.events[e].hash] = true ; // remove events spawned by events spawned by reexecuted event ad infinitum
                 this.events.splice(e,1) ;
                 e--;
             }
-        }
-        // Mark all the newly spawned events
-        for(let k = 0 ; k < this.events_spawned.length; k++){
-            this.events_spawned[k].spawned_by = executing_hash;
         }
 
         // Mark incomplete all events after this one that read any values that might have changed
@@ -151,7 +153,7 @@ class Timeline{
         }
         
         event.done = true ;
-        this.events_spawned = undefined;
+        this.executing_hash = undefined;
         return true;
     }
 
@@ -168,7 +170,7 @@ class Timeline{
         let event_hashes = [];
         for(let k = 0; k < this.events.length; k++){
             if(this.events[k].time > base_time){
-                event_hashes.push(this.events[k].hash());
+                event_hashes.push(this.events[k].hash);
             }
         }
 
@@ -193,9 +195,9 @@ class Timeline{
         //TODO we could be sending events that haven't been spawned yet but will be due to clock differences
         for(let k = 0; k < this.events.length; k++){
             if(this.events[k].time >= base_time){
-                // Don't sendi f they have it or if they have the event that spawned it
-                if(!has_event_hash[this.events[k].hash()] && !has_event_hash[this.events[k].spawned_by]){
-                    event_updates.push(this.events[k].serialize()); // TODO duplicate serialize
+                // Don't send if they have it or if they have the event that spawned it
+                if(!has_event_hash[this.events[k].hash] && !has_event_hash[this.events[k].spawned_by]){
+                    event_updates.push(this.events[k].serial);
                 }
             }
         }
@@ -204,7 +206,7 @@ class Timeline{
         for(let id in this.instants){
             let base_obj = this.getInstant(id, base_time) ;
             if(base_obj != null && base_obj.hash() != other_hash_data.base[id]){
-                obj_updates[id] = {type:base_obj.constructor.name, time:this.last_instant_time, serial:base_obj.serialize()} ; // TODO duplicate serialize
+                obj_updates[id] = {type:base_obj.constructor.name, time:this.last_instant_time, serial:base_obj.serialize()} ;
             }
         }
         return {base_time: base_time, current_time: this.current_time, events:event_updates, base:obj_updates} ;
@@ -214,15 +216,16 @@ class Timeline{
     // Note: the server should not allow external updates to its base state
     applyUpdate(update, allow_base_change = true){
 
-        let event_hashes = {}; // TODO this is pretty slow serializing every event every update
+        let event_hashes = {}; // TODO could precompute this map
 
         for(let k = 0; k < this.events.length; k++){
-            event_hashes[this.events[k].hash()] = true;
+            event_hashes[this.events[k].hash] = true;
         }
 
-        for(let k = 0 ; k < update.events.length; k++){ 
-            if(!event_hashes[TEvent.hashSerial(update.events[k])]){ // Don't add duplicate events sent from server
-                this.addEvent(TEvent.getEventBySerialized(update.events[k])) ;
+        for(let k = 0 ; k < update.events.length; k++){
+            let hash = TEvent.hashSerial(update.events[k]) ;
+            if(!event_hashes[hash]){ // Don't add duplicate events sent from server
+                this.addEvent(TEvent.getEventBySerialized(update.events[k], hash)) ;
             }
         }
         if(allow_base_change){
@@ -289,7 +292,6 @@ class Timeline{
                 i++;
             }
             let to_delete = i - 1 ;
-            //console.log("deleting: " + to_delete + " from " + this.instants[id].length);
             if(to_delete > 0){
                 this.instants[id].splice(0,to_delete);  
             }
@@ -338,12 +340,10 @@ class Timeline{
         for(let id in this.instants){
             max_id = Math.max(id, max_id);
         }
-        //console.log("next id : " + (max_id+1));
         return max_id+1;
     }
 
     getAllIDs(){
-        //console.log(this.instants);
         let ids = [];
         for(let id in this.instants){
             ids.push(id);
