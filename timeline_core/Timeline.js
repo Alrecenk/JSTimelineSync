@@ -115,15 +115,16 @@ class Timeline{
         this.executed_time = event.time ;
         this.get_instances = {};
         this.executing_hash = event.hash;
-        event.run(this);
         event.read_ids = {};
         let data_dirtied = event.write_ids; // make sure to dirty data we wrote from a past execution that might not be written this time
         event.write_ids = {};
+        event.run(this);
         // Incorporate edited values fetched with get into the timeline instants
         for(let read_id in this.get_instances){
             event.read_ids[read_id] = true;
-            if(this.get_instances[read_id] && 
-                this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.last_hash){ // object was edited
+            if((this.get_instances[read_id] && // object was edited
+                this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.last_hash)
+                || event.write_ids[read_id]){ // object was deleted
                 event.write_ids[read_id] = true;
                 //Delete all instants after edited one
                 this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);
@@ -301,14 +302,15 @@ class Timeline{
         for(let id in this.instants){
             // Find first index past new_base time
             let i = 0 ;
-            while(i < this.instants.length && this.instants[id][i].time <= new_base_time){
+            while(i < this.instants[id].length && this.instants[id][i].time <= new_base_time){
                 i++;
             }
             let to_delete = i - 1 ;
             if(to_delete > 0){
                 this.instants[id].splice(0,to_delete);  
+                this.instant_read_index[id] -= to_delete ;
             }
-            if(this.instants[id].length == 1 && !(this.instants[id].obj)){
+            if(this.instants[id].length == 1 && !(this.instants[id][0].obj)){
                 delete this.instants[id] ; // If last remaining object is a deletion marker, remove from instants entirely
             }
         }

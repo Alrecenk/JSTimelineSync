@@ -7,7 +7,7 @@
 <script type="text/javascript" src="timeline_core/TEvent.js"></script>
 <script type="text/javascript" src="timeline_core/Timeline.js"></script>
 <script type="text/javascript" src="timeline_core/AddObject.js"></script>
-<script type="text/javascript" src="timeline_core/TClient.js"></script>
+<script type="text/javascript" src="timeline_core/DeleteObject.js"></script>
 
 <script type="text/javascript" src="objects/Player.js"></script>
 <script type="text/javascript" src="objects/ChatLog.js"></script>
@@ -134,7 +134,7 @@ function synchronizeChangingVelocity(){
     // create an event 1 second in the future to change the velocity
     client.addEvent(new UpdatePlayerVelocity(2.01, {player_id:0, vx:0, vy:10}));
     // apply packet to server
-    packet = server.synchronize(packet.hash_data, packet.update, false, server.current_time-Timeline.sync_base_age);
+    packet = server.synchronize(packet.hash_data, packet.update, false);
     
     // Runlive synchronization for 2 more seconds
     let time = 1 ;
@@ -142,8 +142,8 @@ function synchronizeChangingVelocity(){
     for(let time = 1; time <= 3; time+=step){
         server.run(step);
         client.run(step);
-        packet = client.synchronize(packet.hash_data, packet.update, true, client.current_time-Timeline.sync_base_age);
-        packet = server.synchronize(packet.hash_data, packet.update, false, server.current_time-Timeline.sync_base_age);
+        packet = client.synchronize(packet.hash_data, packet.update, true);
+        packet = server.synchronize(packet.hash_data, packet.update, false);
         
         let times = client.instants[0].map(x => x.time);
         for(let k=1; k<times.length;k++){
@@ -161,7 +161,53 @@ function synchronizeChangingVelocity(){
 }
 
 function synchronizeObjectDeletion(){
-    //TODO
+    let server = getPlayerMoveStart() ;
+    server.run(1); // Run for a second
+    console.assert(server.getInstant(0, server.current_time).x == 10, "Player has not moved the correct amount in initialzation ", server.get(0));
+    // synchronize in timeline2
+    let client = new Timeline(0);
+    let packet = {update:server.getUpdateFor(client.getHashData(0), 0), hash_data:server.getHashData(0)};
+    // apply packet to timeline 2 and generate packet for timeline 1
+    packet = client.synchronize(packet.hash_data, packet.update, true);
+    packet = server.synchronize(packet.hash_data, packet.update, false);
+    client.run(1); // Run the server's current time to catch up since clock sync is off for unit tests
+    console.assert(client.getInstant(0, client.current_time).x == 10, "Player did not sync to the correct location ", client.get(0));
+
+    client.deleteObject(0, 1.55); // Client deletes player
+    
+    packet = client.synchronize(packet.hash_data, packet.update, true); // synchronize eventot server
+    packet = server.synchronize(packet.hash_data, packet.update, false);
+    
+    client.run(1); // advance time so event runs
+    server.run(1);
+
+    console.assert(client.getInstant(0, client.current_time-1) != null, "Client read null too early", client);
+    console.assert(server.getInstant(0, server.current_time-1) != null, "Server read null too early", server);
+
+    console.assert(client.getInstant(0, client.current_time) == null, "Client did not properly delete object", client);
+    console.assert(server.getInstant(0, server.current_time) == null, "Server did not properly sync delete object", server);
+
+    console.assert( 0 in client.instants, "Client freed deleted instant before it should have expired");
+    client.run(5);
+    console.assert(! ( 0 in client.instants), "Client did not properly free deleted object after time expired", client);
+    
+    console.assert( 0 in server.instants, "Server freed deleted instant before it should have expired");
+    server.run(5);
+    console.assert(! ( 0 in server.instants), "Server did not properly free deleted object after time expired", server);
+
+    // Verify nondeleted object doesn't expire due to deletion logic
+    let player = new Player();
+    player.x = 0 ;
+    player.y = 5 ;
+    player.vx = 10 ;
+    player.name = "player 2" ; 
+    client.addObject(player, 2, 8) ;
+    client.run(10);
+    console.assert(client.getInstant(2, 7) == null, "Object created too early", client);
+    console.assert(client.getInstant(2, 9) != null, "Object not present after creation", client);
+    client.run(10);
+    console.assert(client.getInstant(2, 20) != null, "Object expired without explicit deletion!", client);
+    
 }
 
 function synchronizeTwoPlayersChanging(){
@@ -176,6 +222,7 @@ function runAllTests(){
     addPlayerAndMove();
     updateEmptyTimeline();
     synchronizeChangingVelocity();
+    synchronizeObjectDeletion();
     synchronizeTwoPlayersChanging();
     console.log("Tests completed.");
 }

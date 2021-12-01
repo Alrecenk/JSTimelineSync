@@ -14,6 +14,7 @@ class DeleteObject extends TEvent{
         if(obj!=null){
             // directly set the reference to the edited value to null to delete it in the timeline
             timeline.get_instances[ID] = null ;
+            this.write_ids[ID] = true; // make it as written to skip hash checking of null
         }
     }
 }
