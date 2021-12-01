@@ -91,7 +91,7 @@ class Timeline{
 
     // Add an object
     addObject(obj, ID, time){
-        this.addEvent(new addObject(time, {type : obj.constructor.name, ID: ID, serial:obj.serialize()})) ;
+        this.addEvent(new AddObject(time, {type : obj.constructor.name, ID: ID, serial:obj.serialize()})) ;
     }
 
     // Executes the next event if it is not done and occurs before the given time
