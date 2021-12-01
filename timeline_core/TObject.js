@@ -37,6 +37,9 @@ class TObject{
     }
 
     static copy(obj){
+        if(!obj){
+            return null ;
+        }
         return this.getObjectBySerialized(obj.constructor.name, obj.ID, obj.serialize());
     }
 }

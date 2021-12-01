@@ -84,7 +84,6 @@ class Timeline{
             this.client.sendUpdate(JSON.stringify({update:update}));
         }else{
             new_event.computeSerial();
-            //console.log(new_event);
         }
         
     }
@@ -93,6 +92,12 @@ class Timeline{
     addObject(obj, ID, time){
         this.addEvent(new AddObject(time, {type : obj.constructor.name, ID: ID, serial:obj.serialize()})) ;
     }
+
+    // Delete an object
+    deleteObject(ID, time){
+        this.addEvent(new DeleteObject(time, {ID: ID})) ;
+    }
+
 
     // Executes the next event if it is not done and occurs before the given time
     // Returns whether there are more events to execute
@@ -110,15 +115,16 @@ class Timeline{
         this.executed_time = event.time ;
         this.get_instances = {};
         this.executing_hash = event.hash;
-        event.run(this);
         event.read_ids = {};
         let data_dirtied = event.write_ids; // make sure to dirty data we wrote from a past execution that might not be written this time
         event.write_ids = {};
+        event.run(this);
         // Incorporate edited values fetched with get into the timeline instants
         for(let read_id in this.get_instances){
             event.read_ids[read_id] = true;
-            if(this.get_instances[read_id] && 
-                this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.last_hash){ // object was edited
+            if((this.get_instances[read_id] && // object was edited
+                this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.last_hash)
+                || event.write_ids[read_id]){ // object was deleted
                 event.write_ids[read_id] = true;
                 //Delete all instants after edited one
                 this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);
@@ -171,7 +177,7 @@ class Timeline{
         }
         let event_hashes = [];
         for(let k = 0; k < this.events.length; k++){
-            if(this.events[k].time > base_time){
+            if(this.events[k].time > base_time){ // TODO don't send hashes for generated eventsthe server wouldn't send anyway
                 event_hashes.push(this.events[k].hash);
             }
         }
@@ -210,6 +216,8 @@ class Timeline{
             let base_obj = this.getInstant(id, base_time) ;
             if(base_obj != null && base_obj.hash() != other_hash_data.base[id]){
                 obj_updates[id] = {type:base_obj.constructor.name, time:this.last_instant_time, serial:base_obj.serialize()} ;
+            }else if(base_obj == null && other_hash_data.base[id]){ // if nulled out but other still has it
+                obj_updates[id] = {time:this.last_instant_time} ; // sned update of just time
             }
         }
         return {base_time: base_time, current_time: this.current_time, events:event_updates, base:obj_updates} ;
@@ -237,7 +245,11 @@ class Timeline{
             // Base update follows same logic as event rollback data updates
             for(let read_id in update.base){
                 let obj = this.getInstant(read_id, update.base[read_id].time);
-                if(obj == null){
+                if(!(update.base[read_id].serial) && obj != null){ // if update is sending a deletion to something we have
+                    this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);
+                    //Add new null to the end of instants at this time
+                    this.instants[read_id].push({time:update.base[read_id].time, obj:null});
+                }else if(update.base[read_id] != null && obj == null){
                     obj = TObject.getObjectBySerialized(update.base[read_id].type, read_id, update.base[read_id].serial) ;
                     this.instant_read_index[read_id] = 0 ;
                     this.instants[obj.ID] = [{time:update.base[read_id].time, obj:obj}] ;
@@ -290,12 +302,16 @@ class Timeline{
         for(let id in this.instants){
             // Find first index past new_base time
             let i = 0 ;
-            while(i < this.instants.length && this.instants[id][i].time <= new_base_time){
+            while(i < this.instants[id].length && this.instants[id][i].time <= new_base_time){
                 i++;
             }
             let to_delete = i - 1 ;
             if(to_delete > 0){
                 this.instants[id].splice(0,to_delete);  
+                this.instant_read_index[id] -= to_delete ;
+            }
+            if(this.instants[id].length == 1 && !(this.instants[id][0].obj)){
+                delete this.instants[id] ; // If last remaining object is a deletion marker, remove from instants entirely
             }
         }
 
