@@ -34,7 +34,7 @@ function playerSerialize(){
     let player = new Player();
     player.x = 200 ;
     player.y = 200 ;
-    player.name = "player 1"; // TODO let the player input this
+    player.name = "player 1";
     let serial = player.serialize();
     console.assert(serial == `{"name":"player 1","x":200,"y":200,"vx":0,"vy":0}`, "Player failed serialize: " +serial);
     let np = TObject.getObjectBySerialized(player.constructor.name, 0, serial);

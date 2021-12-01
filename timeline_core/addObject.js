@@ -1,6 +1,6 @@
 //All edits to objects have to take place as events so adding objects to the timeline must also be an event.
 // You can use addObject on the timelines and it will create this for you.
-class addObject extends TEvent{
+class AddObject extends TEvent{
 
     constructor(time, params){
         super(time);
