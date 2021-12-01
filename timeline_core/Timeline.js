@@ -95,7 +95,7 @@ class Timeline{
 
     // Delete an object
     deleteObject(ID, time){
-        this.addEvent(new DeleteObject(time, {ID: ID, serial:obj.serialize()})) ;
+        this.addEvent(new DeleteObject(time, {ID: ID})) ;
     }
 
 
