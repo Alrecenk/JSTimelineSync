@@ -1,5 +1,6 @@
 // A "player" for the 2D chat example
 class Player extends TObject{
+    static radius = 35 ;
     name = "";
     x = 0;
     y = 0;
@@ -15,7 +16,7 @@ class Player extends TObject{
         return JSON.stringify(s);
     }
 
-    // Se6t this object to a serialized string created with serialize.
+    // Set this object to a serialized string created with serialize.
     set(serialized){
         let s = JSON.parse(serialized);
         this.name = s.name;

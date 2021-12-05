@@ -9,11 +9,11 @@ class Timeline{
     instants ; // map<id, vector<{time,obj}> of value of each object immediately after each change for time between base time and executed_time
     instant_read_index ; // map<id,int> points to position in instant sub vectors last read (starting from here allows fast access for temporally coherent reads)
     last_instant_time ; // Time of writing of the last instant read with get or getInstant
-    get_instances = [] ; // a temporary variable to hold references to objects returned by get
+    get_instances = {} ; // a temporary variable to hold references to objects returned by get
     events_spawned = undefined; // A temporary variable to track what events are spawned by another running event
     last_run_time ; // the real clock time in milliseconds of the last time the run method was called
     last_update_current_time ; // the current_time of the last update received used to measure game time latency
-    latency=-1;
+    ping=-1;
     client = undefined; // A link to a TClient object if this timeline is attached to one
     aggressive_event_sending = true; // Whether user generated events are sent to the server aggressively
 
@@ -21,7 +21,8 @@ class Timeline{
     static base_age = 2; // Amount of history to keep on the timeline
     static execute_buffer = 0.5 ; // How far ahead of the current time to predictively execute instructions
     static smooth_clock_sync_rate = 0.2; // how fast to adjust client clock time when it's close to synchronized
-    
+    static event_write_delay = 0.001; // time after event its data changes are written
+
     constructor(time = 0){
         this.current_time = time ;
         this.executed_time = time ;
@@ -65,7 +66,10 @@ class Timeline{
 
     // Adds a new event
     addEvent(new_event){
-        
+        // Sometimes browsers that have been minimized will send very old packets and cause problems
+        if(new_event.time < this.current_time-Timeline.sync_age){
+            return ;
+        }
         // TODO make sure events at the same time have their order set deterministically(maybe by hash) not by when they were added.
         let place = this.events.length;
         while(place > 0 && this.events[place-1].time > new_event.time){
@@ -108,7 +112,7 @@ class Timeline{
         }
 
         let event = this.events[this.next_execute] ;
-        this.next_execute++;
+        this.next_execute++; // must be before run because it may be referenced in the event if it adds events
         if(event.done){ // This event has already been run and it didn't read anything that has been rolled back
             return true ;
         }
@@ -117,21 +121,36 @@ class Timeline{
         this.executing_hash = event.hash;
         event.read_ids = {};
         let data_dirtied = event.write_ids; // make sure to dirty data we wrote from a past execution that might not be written this time
-        event.write_ids = {};
+        //event.write_ids = {};
+        let new_write_ids = {};
         event.run(this);
         // Incorporate edited values fetched with get into the timeline instants
         for(let read_id in this.get_instances){
             event.read_ids[read_id] = true;
             if((this.get_instances[read_id] && // object was edited
-                this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.last_hash)
-                || event.write_ids[read_id]){ // object was deleted
-                event.write_ids[read_id] = true;
+                this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.hash())
+                || (event instanceof DeleteObject)){ // object was deleted
+                new_write_ids[read_id] = true;
                 //Delete all instants after edited one
                 this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);
                 //Add new edit to the end of instants at this time
-                this.instants[read_id].push({time:this.executed_time, obj:this.get_instances[read_id]});
+                this.instants[read_id].push({time:this.executed_time + Timeline.event_write_delay, obj:this.get_instances[read_id]});
                 data_dirtied[read_id] = true; // dirty all IDs we edited this time
             }
+        }
+
+        // Clear out previously written data that is no longer written by this event
+        if(!(event instanceof AddObject)){
+            for(let previous_write_id in event.write_ids){
+                if(! (previous_write_id in new_write_ids)){
+                    // Fetch the value to adjust the pointer in case it wasn't read bythe event rerun
+                    let value = this.getInstant(previous_write_id, event.time);
+                    //Delete all instants after and including previously edited one
+                    this.instants[previous_write_id].splice(this.instant_read_index[previous_write_id]+1, this.instants[previous_write_id].length);
+                    data_dirtied[previous_write_id] = true; // dirty the newly unmodified data
+                }
+            }
+            event.write_ids = new_write_ids;
         }
 
         //Delete all events spawned by a previous run of this event
@@ -142,6 +161,14 @@ class Timeline{
                 this.events[e].just_spawned = undefined ; 
             }else if(removed_spawners[this.events[e].spawned_by]){
                 removed_spawners[this.events[e].hash] = true ; // remove events spawned by events spawned by reexecuted event ad infinitum
+                // remove any data writes these removed events made
+                for(let previous_write_id in this.events[e].write_ids){
+                    // Fetch the value to adjust the pointer in case it wasn't read by the event rerun
+                    let value = this.getInstant(previous_write_id, this.events[e].time);
+                    //Delete all instants after and including previously edited one
+                    this.instants[previous_write_id].splice(this.instant_read_index[previous_write_id]+1, this.instants[previous_write_id].length);
+                    data_dirtied[previous_write_id] = true; // dirty the newly unmodified data
+                }
                 this.events.splice(e,1) ;
                 e--;
             }
@@ -249,11 +276,11 @@ class Timeline{
                     this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);
                     //Add new null to the end of instants at this time
                     this.instants[read_id].push({time:update.base[read_id].time, obj:null});
-                }else if(update.base[read_id] != null && obj == null){
+                }else if(update.base[read_id].serial && obj == null){ // update is adding new object we don't currently have
                     obj = TObject.getObjectBySerialized(update.base[read_id].type, read_id, update.base[read_id].serial) ;
                     this.instant_read_index[read_id] = 0 ;
                     this.instants[obj.ID] = [{time:update.base[read_id].time, obj:obj}] ;
-                }else if(obj.hash()!= TObject.hashSerial(update.base[read_id].serial)){
+                }else if(obj && obj.hash()!= TObject.hashSerial(update.base[read_id].serial)){ // update is a change to something w have
                     obj.set(update.base[read_id].serial);
                     //Delete all instants after edited one
                     this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);
@@ -279,8 +306,8 @@ class Timeline{
 
             // Sync clock to server time + half round trip latency
             if(this.last_update_current_time){
-                this.latency = (update.current_time - this.last_update_current_time)*0.5;
-                let target_time = update.current_time + this.latency;
+                this.ping = update.current_time - this.last_update_current_time;
+                let target_time = update.current_time + this.ping/2;
                 // If we're totally out of sync then snap back into sync
                 if(Math.abs(target_time-this.current_time) > Timeline.sync_base_age){
                     this.current_time = target_time ;

@@ -3,7 +3,6 @@
 
 class TObject{
     ID ; // Unique integer identifier
-    last_hash ; // last hash computed with hash()
 
     // Serialize this object to a string
     serialize(){
@@ -17,9 +16,8 @@ class TObject{
 
     hash(){
         let serial = this.serialize();
-        //TODO is this hash actually any good here?
-        this.last_hash = TObject.hashSerial(serial);            
-        return this.last_hash ;
+        //TODO cache hash     
+        return TObject.hashSerial(serial);     
     }
 
     static hashSerial(serial){

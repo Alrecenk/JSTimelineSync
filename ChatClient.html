@@ -4,21 +4,23 @@
 <head>
 <meta charset="UTF-8">
 <script type="text/javascript" src="InterfaceButton.js"></script>
-
+<!-- Timeline Core -->
 <script type="text/javascript" src="timeline_core/TObject.js"></script>
 <script type="text/javascript" src="timeline_core/TEvent.js"></script>
 <script type="text/javascript" src="timeline_core/Timeline.js"></script>
 <script type="text/javascript" src="timeline_core/AddObject.js"></script>
+<script type="text/javascript" src="timeline_core/DeleteObject.js"></script>
 <script type="text/javascript" src="timeline_core/TClient.js"></script>
-
+<!-- Chat Demo objects-->
 <script type="text/javascript" src="objects/Player.js"></script>
 <script type="text/javascript" src="objects/ChatLog.js"></script>
-
+<script type="text/javascript" src="objects/World.js"></script>
+<!-- Chat Demo Events-->
 <script type="text/javascript" src="events/MovePlayer.js"></script>
 <script type="text/javascript" src="events/AddChatLine.js"></script>
 <script type="text/javascript" src="events/UpdatePlayerVelocity.js"></script>
-
-
+<script type="text/javascript" src="events/Heartbeat.js"></script>
+<script type="text/javascript" src="events/WorldTick.js"></script>
 
 <script type="text/javascript">
 
@@ -36,8 +38,7 @@ var base_age = 2 ;
 
 var my_id = -1 ;
 var chat_id = -1 ;
-var player_radius = 30;
-var player_speed = 1000;
+var player_speed = 400;
 var player_fill = "#D0D0D0";
 var player_stroke = "#D000D0" ;
 var stroke_size = 4 ;
@@ -46,6 +47,8 @@ var action_delay = 0.1;
 var player_ahead = 0.1;
 
 var last_chat_text = "";
+
+var last_heartbeat = 0;
 
 
 async function windowLoadHandler() {
@@ -81,6 +84,7 @@ function canvasApp() {
 		window.addEventListener("mouseup", mouseUpListener, false);
 		window.addEventListener('keydown',keyListener,false);
         requestAnimationFrame(timeListener);
+        setInterval(timeListener2, 200); // call timer every once in a while no tied to a render, so we don't disconnect on minimize
 
         // Execute a function when the user releases a key on the keyboard
         document.getElementById("textbox").addEventListener("keyup", function(event) {
@@ -95,17 +99,16 @@ function canvasApp() {
 	}
 	
 	function setupGame(){
-        interface_buttons["latency_label"] = new InterfaceButton(theCanvas.width-200, 10, 200, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+        interface_buttons["latency_label"] = new InterfaceButton(theCanvas.width-200, 10, 200, 40, "ping:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
 
 		// Initialization stuff for canvas app goes here.
         my_id = timeline.getNextID(); // TODO race condition: this will be wrong if some other AddObject event gets in before this one runs
-        
 		let player = new Player();
         player.x = 200 ;
         player.y = 200 ;
         player.name = "Player " + my_id  ; // TODO let the player input this
-        timeline.addObject(player, my_id, timeline.current_time) ;
-        timeline.addEvent(new MovePlayer(timeline.current_time+0.1, {player_id:my_id, interval:interval }));
+        timeline.addObject(player, my_id, timeline.current_time+0.2) ;
+        timeline.addEvent(new MovePlayer(timeline.current_time+1, {player_id:my_id, interval:interval }));
 	}
 	
 	
@@ -114,7 +117,7 @@ function canvasApp() {
 		context.fillStyle = "#000000";
 		context.fillRect(0,0,theCanvas.width,theCanvas.height);
 		
-        interface_buttons["latency_label"].text = "latency:" + Math.round(timeline.latency*1000) +" ms";
+        interface_buttons["latency_label"].text = "ping:" + Math.round(timeline.ping*1000) +" ms";
 
 		// Draw any buttons currently on the interface.
 		for (var button_name in interface_buttons) {
@@ -123,12 +126,14 @@ function canvasApp() {
 	        }
 	    }
 
-        visual_buffer = timeline.latency*2 ;
-        player_ahead = timeline.latency*3 ;
-        action_delay = timeline.latency*3 ;
-
+        //TODO built in place for setting timings
+        visual_buffer = timeline.ping*0.5 ;
+        player_ahead = timeline.ping*0.75 ;
+        action_delay = 0.1+timeline.ping*0.75 ;
+        
         let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
-        for(let id in IDs){
+
+        for(let id of IDs){
             let p ;
             if(id == my_id){
                 p = timeline.getInstant(id, timeline.current_time + player_ahead) ;
@@ -139,7 +144,7 @@ function canvasApp() {
                 continue ; //TODO print error
             }
             if(p.constructor.name == "Player"){
-                drawCircle(p.x, p.y, player_radius, player_fill, player_stroke,stroke_size);
+                drawCircle(p.x, p.y, Player.radius, player_fill, player_stroke,stroke_size);
             }
             if(p.constructor.name == "ChatLog"){
                 chat_id = id ;
@@ -174,9 +179,9 @@ function canvasApp() {
                 vx = dx * player_speed/d1;
                 vy = dy * player_speed/d1;
             }
-            // Only mak an event if it has sufficiently changed
-            if(Math.sqrt((vx-last_vx)*(vx-last_vx) + (vy-last_vy)*(vy-last_vy))/player_speed > 0.1){
-                last_vx = vx;
+            // Only make an event if it has sufficiently changed
+            if(Math.sqrt((vx-last_vx)*(vx-last_vx) + (vy-last_vy)*(vy-last_vy))/player_speed > 0.01){
+                last_vx = vx ;
                 last_vy = vy ;
                 timeline.addEvent(new UpdatePlayerVelocity(timeline.current_time+action_delay,  {player_id:my_id, vx:vx, vy:vy})) ;
             }
@@ -189,6 +194,16 @@ function canvasApp() {
 		drawScreen();
         requestAnimationFrame(timeListener);
 	}
+
+    function timeListener2(){ // TODO terrible name
+        // Advance time
+        timeline.run();
+        
+        if(timeline.current_time > last_heartbeat + 0.5){
+            last_heartbeat = timeline.current_time+action_delay ;
+            timeline.addEvent(new Heartbeat(last_heartbeat, {player_id:my_id}));
+        }
+    }
 	
 	function keyListener(evt) {
 		evt = evt || window.event;
@@ -244,7 +259,7 @@ function canvasApp() {
         let dx = mouse_down_x - me.x;
         let dy = mouse_down_y - me.y;
         let d2 = dx*dx+ dy*dy ;
-        if(d2 > player_radius*player_radius){ // not clicking on self
+        if(d2 > Player.radius*Player.radius){ // not clicking on self
             let d1 = Math.sqrt(d2);
             vx = dx * player_speed/d1;
             vy = dy * player_speed/d1;
