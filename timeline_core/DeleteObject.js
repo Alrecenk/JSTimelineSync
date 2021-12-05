@@ -12,9 +12,11 @@ class DeleteObject extends TEvent{
         // fetch the object to get the correct pointer for execute to place the value
         let obj = timeline.get(ID);
         if(obj!=null){
+            //console.log("deleting " + ID + " with event.");
             // directly set the reference to the edited value to null to delete it in the timeline
             timeline.get_instances[ID] = null ;
-            this.write_ids[ID] = true; // make it as written to skip hash checking of null
+        }else{
+            console.error("Deleting object which doesn't exist at the time it is being deleted!");
         }
     }
 }

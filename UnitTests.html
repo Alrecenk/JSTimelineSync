@@ -1,20 +1,23 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<script type="text/javascript" src="InterfaceButton.js"></script>
-
+<!-- Timeline Core -->
 <script type="text/javascript" src="timeline_core/TObject.js"></script>
 <script type="text/javascript" src="timeline_core/TEvent.js"></script>
 <script type="text/javascript" src="timeline_core/Timeline.js"></script>
 <script type="text/javascript" src="timeline_core/AddObject.js"></script>
 <script type="text/javascript" src="timeline_core/DeleteObject.js"></script>
-
+<script type="text/javascript" src="timeline_core/TClient.js"></script>
+<!-- Chat Demo objects-->
 <script type="text/javascript" src="objects/Player.js"></script>
 <script type="text/javascript" src="objects/ChatLog.js"></script>
-
+<script type="text/javascript" src="objects/World.js"></script>
+<!-- Chat Demo Events-->
 <script type="text/javascript" src="events/MovePlayer.js"></script>
 <script type="text/javascript" src="events/AddChatLine.js"></script>
 <script type="text/javascript" src="events/UpdatePlayerVelocity.js"></script>
+<script type="text/javascript" src="events/Heartbeat.js"></script>
+<script type="text/javascript" src="events/WorldTick.js"></script>
 
 <script type="text/javascript">
 
@@ -122,7 +125,7 @@ function synchronizeChangingVelocity(){
     
     let server = getPlayerMoveStart() ;
     server.run(1); // Run for a second
-    console.assert(server.getInstant(0, server.current_time).x == 10, "Player has not moved the correct amount in initialzation ", server.get(0));
+    console.assert(server.getInstant(0, server.current_time+Timeline.event_write_delay).x == 10, "Player has not moved the correct amount in initialzation ", server.get(0));
     // synchronize in timeline2
     let client = new Timeline(0);
     // create a starting synchronization packet from timeline 1 to 2
@@ -130,7 +133,7 @@ function synchronizeChangingVelocity(){
     // apply packet to timeline 2 and generate packet for timeline 1
     packet = client.synchronize(packet.hash_data, packet.update, true, client.current_time-Timeline.sync_base_age);
     client.run(1); // Run the server's current time to catch up since clock sync is off for unit tests
-    console.assert(client.getInstant(0, client.current_time).x == 10, "Player did not sync to the correct location ", client.get(0));
+    console.assert(client.getInstant(0, client.current_time+Timeline.event_write_delay).x == 10, "Player did not sync to the correct location ", client.get(0));
     // create an event 1 second in the future to change the velocity
     client.addEvent(new UpdatePlayerVelocity(2.01, {player_id:0, vx:0, vy:10}));
     // apply packet to server
@@ -154,8 +157,8 @@ function synchronizeChangingVelocity(){
         }
     }
 
-    let client_latest = client.get(0);
-    let server_latest = server.get(0);
+    let client_latest = client.getInstant(0, 3);
+    let server_latest = server.getInstant(0, 3);
     console.assert(client_latest.serialize() == server_latest.serialize(), 
         "Client and server are out of sync \n" + client_latest.serialize()  +"\n != \n" + server_latest.serialize());
 }
@@ -163,7 +166,7 @@ function synchronizeChangingVelocity(){
 function synchronizeObjectDeletion(){
     let server = getPlayerMoveStart() ;
     server.run(1); // Run for a second
-    console.assert(server.getInstant(0, server.current_time).x == 10, "Player has not moved the correct amount in initialzation ", server.get(0));
+    console.assert(server.getInstant(0, server.current_time+Timeline.event_write_delay).x == 10, "Player has not moved the correct amount in initialzation ", server.get(0));
     // synchronize in timeline2
     let client = new Timeline(0);
     let packet = {update:server.getUpdateFor(client.getHashData(0), 0), hash_data:server.getHashData(0)};
@@ -171,7 +174,7 @@ function synchronizeObjectDeletion(){
     packet = client.synchronize(packet.hash_data, packet.update, true);
     packet = server.synchronize(packet.hash_data, packet.update, false);
     client.run(1); // Run the server's current time to catch up since clock sync is off for unit tests
-    console.assert(client.getInstant(0, client.current_time).x == 10, "Player did not sync to the correct location ", client.get(0));
+    console.assert(client.getInstant(0, client.current_time+Timeline.event_write_delay).x == 10, "Player did not sync to the correct location ", client.get(0));
 
     client.deleteObject(0, 1.55); // Client deletes player
     
@@ -210,20 +213,64 @@ function synchronizeObjectDeletion(){
     
 }
 
-function synchronizeTwoPlayersChanging(){
-    //TODO
+function twoPlayersColliding(){
+    let timeline =new Timeline(0);
+
+    // Add and start world for collision check
+    World.ID = 0 ;
+    timeline.addObject(new World(), World.ID, 0.01);
+    timeline.addEvent(new WorldTick(0.05, {interval:0.1}));
+
+    // Add two players to collide
+    Player.radius = 5 ;
+
+    let player1 = new Player();
+    player1.x = 0 ;
+    player1.y = 5 ;
+    player1.vx = 10 ;
+    player1.name = "player 1" ; 
+    timeline.addObject(player1, 1, 0.03) ;
+
+    let player2 = new Player();
+    player2.x = 15 ;
+    player2.y = 5 ;
+    player2.name = "player 2" ;
+    timeline.addObject(player2, 2, 0.04) ;
+    
+    // Check players into world
+    timeline.addEvent(new Heartbeat(0.05, {player_id:1}));
+    timeline.addEvent(new Heartbeat(0.06, {player_id:2}));
+
+    // start player moving
+    timeline.addEvent(new MovePlayer(0.1, {player_id:1, interval:0.1 }));
+
+    timeline.run(1);
+    console.assert(timeline.getInstant(1, 0.61).x == 6, "Player 1 in wrong position before collision.", timeline.instants[1]);
+    console.assert(timeline.getInstant(1, 0.66).x == 5.5, "Player 1 in wrong position after collision.", timeline.instants[1]);
+
+    console.assert(timeline.getInstant(2, 0.61).x == 15, "Player 2 in wrong position before collision.", timeline.instants[2]);
+    console.assert(timeline.getInstant(2, 0.66).x == 15.5, "Player 2 in wrong position after collision.", timeline.instants[2]);
+    
+    // change direction before collision
+    timeline.addEvent(new UpdatePlayerVelocity(0.44, {player_id:1, vx:0, vy:10}));
+    timeline.run(0); //rolback doesn't occur until run is called again
+    console.assert(timeline.getInstant(1, 0.66).x == 4, "Player 1 in wrong position after collision averted.", timeline.instants[1]);
+    console.assert(timeline.getInstant(2, 0.66).x == 15, "Player 2 in wrong position after collision averted.", timeline.instants[2]);
+
 }
 
 function runAllTests(){
     Timeline.smooth_clock_sync_rate = 0 ; // Turn off clocksmoothin for unit tests
-    Timeline.clock_sync_latency_fraction = 0 ; // Turn off latency estimation for clock syncing
+    Timeline.execute_buffer = 0 ;
+    
     playerSerialize();
     moveSerialize();
     addPlayerAndMove();
     updateEmptyTimeline();
     synchronizeChangingVelocity();
     synchronizeObjectDeletion();
-    synchronizeTwoPlayersChanging();
+    
+    twoPlayersColliding();
     console.log("Tests completed.");
 }
 
