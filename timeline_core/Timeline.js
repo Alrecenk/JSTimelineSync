@@ -16,7 +16,8 @@ class Timeline{
     ping=-1;
     client = undefined; // A link to a TClient object if this timeline is attached to one
     aggressive_event_sending = true; // Whether user generated events are sent to the server aggressively
-    default_event_delay = 0.1;
+    default_event_delay = 0.1; // events added without time will be given current_time + this
+    default_spawn_delay = 0.01; // events spawned in other events without time will be given executed_time + this
 
 
     static sync_base_age = 1 ; // time that synced base time is behind current time
@@ -69,7 +70,11 @@ class Timeline{
     // Adds a new event
     addEvent(new_event){
         if(!new_event.time){
-            new_event.time = this.current_time + this.default_event_delay ;
+            if(this.executing_hash){ // if done inside another event
+                new_event.time = this.executed_time + this.default_spawn_delay ; // use time of that event with delay
+            }else{
+                new_event.time = this.current_time + this.default_event_delay ; // if externally created use current time with delay
+            }
         // Sometimes browsers that have been minimized will send very old packets and cause problems
         }else if(new_event.time < this.current_time-Timeline.sync_age){
             return ;
