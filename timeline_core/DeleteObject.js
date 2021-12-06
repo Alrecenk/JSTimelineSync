@@ -2,10 +2,6 @@
 // You can use deleteObject on the timeline and it will create this for you.
 class DeleteObject extends TEvent{
 
-    constructor(time, params){
-        super(time);
-        this.parameters = params;
-    }
 
     run(timeline){
         let ID = this.parameters.ID ;

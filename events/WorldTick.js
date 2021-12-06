@@ -42,6 +42,6 @@ class WorldTick extends TEvent{
         }
         
 
-        timeline.addEvent(new WorldTick(this.time+this.parameters.interval, {interval:this.parameters.interval}));
+        timeline.addEvent(new WorldTick({interval:this.parameters.interval}, this.time+this.parameters.interval));
     }
 }

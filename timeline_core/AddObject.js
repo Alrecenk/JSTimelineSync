@@ -2,11 +2,6 @@
 // You can use addObject on the timeline and it will create this for you.
 class AddObject extends TEvent{
 
-    constructor(time, params){
-        super(time);
-        this.parameters = params;
-    }
-
     run(timeline){
         let obj = TObject.getObjectBySerialized(this.parameters.type, this.parameters.ID, this.parameters.serial) ;
         timeline.instants[obj.ID] = [{time:this.time, obj:obj}];

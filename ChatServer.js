@@ -39,7 +39,7 @@ function setUpGame(){
     chat.max_lines = 5;
     chat.chat = [ "Welcome to the server!"];
     timeline.addObject(chat,0,0.02);
-    timeline.addEvent(new WorldTick(0.1, {interval:1.0/60.0}));
+    timeline.addEvent(new WorldTick({interval:1.0/60.0}, 0.1));
 }
 
 function tick(){

@@ -9,6 +9,6 @@ class MovePlayer extends TEvent{
         player.x += player.vx * this.parameters.interval;
         player.y += player.vy * this.parameters.interval;
         //console.log(player);
-        timeline.addEvent(new MovePlayer(this.time+this.parameters.interval, {player_id:this.parameters.player_id, interval:this.parameters.interval }));
+        timeline.addEvent(new MovePlayer({player_id:this.parameters.player_id, interval:this.parameters.interval }, this.time+this.parameters.interval));
     }
 }
