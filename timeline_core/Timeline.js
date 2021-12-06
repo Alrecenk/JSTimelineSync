@@ -16,6 +16,8 @@ class Timeline{
     ping=-1;
     client = undefined; // A link to a TClient object if this timeline is attached to one
     aggressive_event_sending = true; // Whether user generated events are sent to the server aggressively
+    default_event_delay = 0.1;
+
 
     static sync_base_age = 1 ; // time that synced base time is behind current time
     static base_age = 2; // Amount of history to keep on the timeline
@@ -66,8 +68,10 @@ class Timeline{
 
     // Adds a new event
     addEvent(new_event){
+        if(!new_event.time){
+            new_event.time = this.current_time + this.default_event_delay ;
         // Sometimes browsers that have been minimized will send very old packets and cause problems
-        if(new_event.time < this.current_time-Timeline.sync_age){
+        }else if(new_event.time < this.current_time-Timeline.sync_age){
             return ;
         }
         // TODO make sure events at the same time have their order set deterministically(maybe by hash) not by when they were added.
@@ -93,13 +97,13 @@ class Timeline{
     }
 
     // Add an object
-    addObject(obj, ID, time){
-        this.addEvent(new AddObject(time, {type : obj.constructor.name, ID: ID, serial:obj.serialize()})) ;
+    addObject(obj, ID, time = undefined){
+        this.addEvent(new AddObject({type : obj.constructor.name, ID: ID, serial:obj.serialize()}, time)) ;
     }
 
     // Delete an object
-    deleteObject(ID, time){
-        this.addEvent(new DeleteObject(time, {ID: ID})) ;
+    deleteObject(ID, time = undefined){
+        this.addEvent(new DeleteObject({ID: ID}, time)) ;
     }
 
 
@@ -394,5 +398,9 @@ class Timeline{
             ids.push(id);
         }
         return ids ;
+    }
+
+    setDefaultEventDelay(delay){
+        this.default_event_delay = delay ;
     }
 }

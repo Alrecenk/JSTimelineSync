@@ -12,7 +12,7 @@ class TEvent{
     serial ;
     hash ;
 
-    constructor(time, params){
+    constructor(params, time){
         this.time = time;
         this.parameters = params;
     }
@@ -36,8 +36,8 @@ class TEvent{
         let p = JSON.parse(serial);
         let ev ;
         //TODO don't use eval
-        let es = "ev = new "+p.event+"(" + p.time +"," + JSON.stringify(p.parameters) +");" ;
-        eval(es); // TODO got to be a better way also every class needs an empty constructor for this to work
+        let es = "ev = new "+p.event+"(" + JSON.stringify(p.parameters)  +"," + p.time +");" ;
+        eval(es); // TODO got to be a better way than eval
         ev.spawned_by = p.spawned_by;
         ev.computeSerial(serial, hash);
         return ev ;
