@@ -19,6 +19,11 @@ class Timeline{
     default_event_delay = 0.1; // events added without time will be given current_time + this
     default_spawn_delay = 0.01; // events spawned in other events without time will be given executed_time + this
 
+    observe_offset = {}; // Map from id to when that ID should be displayed relative to current_time
+    default_observe_offset = -0.1 ; // default if observe_offset isn't set for a requested id
+    last_observed = {} ; // map from id to last returned interpolation value for getObserved 
+    last_observed_time = {} ; // timestamps for last_observed
+
 
     static sync_base_age = 1 ; // time that synced base time is behind current time
     static base_age = 2; // Amount of history to keep on the timeline
@@ -376,8 +381,9 @@ class Timeline{
         }
         this.last_run_time = time ;
         this.current_time += interval;
-        this.executeToTime(this.current_time + Timeline.execute_buffer);
         this.advanceBaseTime(this.current_time - Timeline.base_age);
+        this.executeToTime(this.current_time + Timeline.execute_buffer);
+        
     }
 
     // execute events and compute object instants up to new executed_time
@@ -407,5 +413,28 @@ class Timeline{
 
     setDefaultEventDelay(delay){
         this.default_event_delay = delay ;
+    }
+
+    setObservedOffset(offset, id = undefined){
+        if(id){
+            this.observe_offset[id] = offset ;
+        }else{
+            this.default_observe_offset = offset;
+        }
+    }
+
+    // Returns a copy of the given id object at the proper time for visualizing
+    // If enabled Interpolates from last interpolated object from this call using overridden TObject.interpolateFrom
+    getObserved(id, interpolate = false){
+        let fetch_time = this.current_time + (id in this.observe_offset ? this.observe_offset[id] : this.default_observe_offset) ;
+        let fetched = this.getInstant(id, fetch_time);
+        if(fetched && interpolate && fetched.interpolateFrom){
+            //TODO is there other data needed for good interpolation?, revisit interface with real examples
+            this.last_observed[id] = fetched.interpolateFrom(this.last_observed[id], this.last_observed_time[id], fetch_time); // TODO 
+            this.last_observed_time[id] = fetch_time ;
+            return this.last_observed[id];
+        }else{
+            return fetched ;
+        }
     }
 }
