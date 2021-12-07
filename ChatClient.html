@@ -38,12 +38,9 @@ var base_age = 2 ;
 
 var my_id = -1 ;
 var chat_id = -1 ;
-var player_speed = 400;
 var player_fill = "#D0D0D0";
 var player_stroke = "#D000D0" ;
 var stroke_size = 4 ;
-var visual_buffer = 0.1;
-var player_ahead = 0.1;
 
 var last_chat_text = "";
 
@@ -125,22 +122,21 @@ function canvasApp() {
 	        }
 	    }
 
-        //TODO built in place for setting timings
-        visual_buffer = timeline.ping*0.5 ;
-        player_ahead = timeline.ping*0.75 ;
-        timeline.setDefaultEventDelay(0.1+timeline.ping*0.75);
+        // Delay player events by ping so they arrive to all players before they actually happen
+        let delay = Math.max(0.1, timeline.ping*0.5);
+        timeline.setDefaultEventDelay(delay);
+        // Draw the player slightly in the future, so they see their own actions happening quicker
+        timeline.setObservedOffset(delay-0.1, my_id);
+        // Draw everything else slightly in the past to reduce visible rollbacks
+        timeline.setObservedOffset(-timeline.ping*0.75);
+        
         
         let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
 
         for(let id of IDs){
-            let p ;
-            if(id == my_id){
-                p = timeline.getInstant(id, timeline.current_time + player_ahead) ;
-            }else{
-                p = timeline.getInstant(id, timeline.current_time - visual_buffer) ;
-            }
+            let p = timeline.getObserved(id, true);
             if(p==null){
-                continue ; //TODO print error
+                continue ; 
             }
             if(p.constructor.name == "Player"){
                 drawCircle(p.x, p.y, Player.radius, player_fill, player_stroke,stroke_size);
@@ -169,17 +165,17 @@ function canvasApp() {
         if(mouse_down){
             let vx = 0 ; // if click invalid then default to stop
             let vy = 0 ;
-            let me = timeline.getInstant(my_id, timeline.current_time+timeline.default_event_delay);
+            let me = timeline.getObserved(my_id);
             let dx = mouse_x - me.x;
             let dy = mouse_y - me.y;
             let d2 = dx*dx+ dy*dy ;
-            if(d2 > 225){ // not there
+            if(d2 > Player.radius*Player.radius){ // not there
                 let d1 = Math.sqrt(d2);
-                vx = dx * player_speed/d1;
-                vy = dy * player_speed/d1;
+                vx = dx * Player.speed/d1;
+                vy = dy * Player.speed/d1;
             }
             // Only make an event if it has sufficiently changed
-            if(Math.sqrt((vx-last_vx)*(vx-last_vx) + (vy-last_vy)*(vy-last_vy))/player_speed > 0.01){
+            if(Math.sqrt((vx-last_vx)*(vx-last_vx) + (vy-last_vy)*(vy-last_vy))/Player.speed > 0.02){
                 last_vx = vx ;
                 last_vy = vy ;
                 timeline.addEvent(new UpdatePlayerVelocity({player_id:my_id, vx:vx, vy:vy})) ;
@@ -215,7 +211,7 @@ function canvasApp() {
         if(key_code == 37 ){ // Left
 	    	
 	    }else if(key_code == 38 ){// Up
-            let me = timeline.getInstant(my_id, timeline.current_time+timeline.default_event_delay);
+            let me = timeline.getObserved(my_id);
 
 	    	console.log(me.serialize());
             console.log(me.hash());
@@ -254,14 +250,14 @@ function canvasApp() {
 		mouse_button = evt.button ;
         let vx = 0 ; // if click invalid then default to stop
         let vy = 0 ;
-        let me = timeline.getInstant(my_id, timeline.current_time+timeline.default_event_delay);
+        let me = timeline.getObserved(my_id);
         let dx = mouse_down_x - me.x;
         let dy = mouse_down_y - me.y;
         let d2 = dx*dx+ dy*dy ;
         if(d2 > Player.radius*Player.radius){ // not clicking on self
             let d1 = Math.sqrt(d2);
-            vx = dx * player_speed/d1;
-            vy = dy * player_speed/d1;
+            vx = dx * Player.speed/d1;
+            vy = dy * Player.speed/d1;
         }
         timeline.addEvent(new UpdatePlayerVelocity({player_id:my_id, vx:vx, vy:vy})) ;
 	}

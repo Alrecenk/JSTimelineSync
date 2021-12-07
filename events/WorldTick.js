@@ -12,9 +12,14 @@ class WorldTick extends TEvent{
         
         for(let k=1;k<player_ids.length;k++){
             let player1 = timeline.get(player_ids[k]);
-           
+            if(!player1){
+                continue;
+            }
             for(let j=0;j<k;j++){
                 let player2 = timeline.get(player_ids[j]);
+                if(!player2){
+                    continue;
+                }
                 let p1top2 = [player2.x -player1.x, player2.y - player1.y];
                 let l = Math.sqrt(p1top2[0]*p1top2[0] + p1top2[1]*p1top2[1]);
                 if( l> 0 && l < Player.radius*2){ //collision

@@ -8,7 +8,10 @@ class DeleteObject extends TEvent{
         // fetch the object to get the correct pointer for execute to place the value
         let obj = timeline.get(ID);
         if(obj!=null){
-            //console.log("deleting " + ID + " with event.");
+            if(ID == World.ID){
+                console.log("deleting " + ID + " with event.");
+                console.trace();
+            }
             // directly set the reference to the edited value to null to delete it in the timeline
             timeline.get_instances[ID] = null ;
         }else{
