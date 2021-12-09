@@ -15,7 +15,7 @@
 <!-- Chat Demo Events-->
 <script type="text/javascript" src="events/MovePlayer.js"></script>
 <script type="text/javascript" src="events/AddChatLine.js"></script>
-<script type="text/javascript" src="events/UpdatePlayerVelocity.js"></script>
+<script type="text/javascript" src="events/UpdatePlayerTarget.js"></script>
 <script type="text/javascript" src="events/Heartbeat.js"></script>
 <script type="text/javascript" src="events/WorldTick.js"></script>
 
@@ -26,10 +26,12 @@ function getPlayerMoveStart(){
     let player = new Player();
     player.x = 0 ;
     player.y = 5 ;
-    player.vx = 10 ;
+    player.tx = 100 ;
+    player.ty = 5 ;
+    player.moving = true;
     player.name = "player 0" ; 
-    timeline.addObject(player, 0, 0) ;
-    timeline.addEvent(new MovePlayer(0.1, {player_id:0, interval:0.1 }));
+    timeline.addObject(player, 0, 0.01) ;
+    timeline.addEvent(new MovePlayer({player_id:0, interval:0.1 }, 0.1));
     return timeline ;
 }
 
@@ -39,14 +41,14 @@ function playerSerialize(){
     player.y = 200 ;
     player.name = "player 1";
     let serial = player.serialize();
-    console.assert(serial == `{"name":"player 1","x":200,"y":200,"vx":0,"vy":0}`, "Player failed serialize: " +serial);
+    console.assert(serial == `{"name":"player 1","x":200,"y":200,"tx":0,"ty":0,"moving":false}`, "Player failed serialize: " +serial);
     let np = TObject.getObjectBySerialized(player.constructor.name, 0, serial);
     let serial2 = np.serialize();
     console.assert(serial2 == serial,"Player failed reserialize: " + serial2 +" != " + serial);
 }
 
 function moveSerialize(){
-    let move = new MovePlayer(0.1, {player_id:9, interval:0.1 }) ;
+    let move = new MovePlayer({player_id:9, interval:0.1 }, 0.1) ;
     let serial = move.serialize();
     console.assert(serial == `{"event":"MovePlayer","time":0.1,"parameters":{"player_id":9,"interval":0.1}}`, "Move failed serialize: " + serial);
     let np = TEvent.getEventBySerialized(serial) ;
@@ -60,22 +62,20 @@ function addPlayerAndMove(){
     console.assert(timeline.events.length == 2, "Incorrect starting events from getPlayerMoveStart "+ JSON.stringify(timeline));
     console.assert(Object.keys(timeline.instants).length == 0, "Incorrect starting objects from getPlayerMoveStart " + JSON.stringify(timeline));
     
-    timeline.current_time = 0.05;
-    timeline.executeToTime(timeline.current_time);
+
+    timeline.run(0.05);
     console.assert(timeline.events.length == 2, "Incorrect # events after first step " + JSON.stringify(timeline));
     console.assert(Object.keys(timeline.instants).length == 1, "Incorrect # objects after first step " + JSON.stringify(timeline));
     console.assert(timeline.instants[0].length == 1, "Incorrect # instants after first step " + JSON.stringify(timeline.instants));
     console.assert(timeline.instants[0][0].obj.x == 0, "Player does not exist or is incorrectly placed!" + JSON.stringify(timeline.instants) ) ;
     
-    timeline.current_time = 0.1;
-    timeline.executeToTime(timeline.current_time);
+    timeline.run(0.05);
     console.assert(timeline.events.length == 3, "Incorrect # events after second step " + JSON.stringify(timeline));
     console.assert(Object.keys(timeline.instants).length == 1, "Incorrect # objects after second step " + JSON.stringify(timeline));
     console.assert(timeline.instants[0].length == 2, "Incorrect # instants after second step " + JSON.stringify(timeline.instants));
     console.assert(timeline.instants[0][1].obj.x == 1, "Player does not exist or is incorrectly placed!" + JSON.stringify(timeline.instants) ) ;
 
-    timeline.current_time = 0.2;
-    timeline.executeToTime(timeline.current_time);
+    timeline.run(0.1);
     console.assert(timeline.events.length == 4, "Incorrect # events after third step " + JSON.stringify(timeline));
     console.assert(Object.keys(timeline.instants).length == 1, "Incorrect # objects after third step " + JSON.stringify(timeline));
     console.assert(timeline.instants[0].length == 3, "Incorrect # instants after third step " + JSON.stringify(timeline.instants));
@@ -104,9 +104,8 @@ function updateEmptyTimeline(){
     );
 
     // Step the server forward twice to generate some new events and an object
-    sync_base_time = 0 ; // Move forward so we get the created objectand not the event that makes it
-    timeline.current_time += 0.2;
-    timeline.executeToTime(timeline.current_time);
+    sync_base_time = 0.05 ; // Move forward so we get the created object and not the event that makes it
+    timeline.run(0.25);
     let t1hash2 = timeline.getHashData(sync_base_time);
     console.assert(t1hash2.events.length == 3, "Stepped timeline hash has wrong number of events!", t1hash2);
     console.assert(Object.keys(t1hash2.base).length == 1, "Stepped timeline hash has wrong nuber of objects", t1hash2);
@@ -121,6 +120,7 @@ function updateEmptyTimeline(){
     console.assert(Object.keys(t2hash3.base).length == 1, "Post-update2 hash has wrong number of objects.", t2hash3.base);
     */
 }
+/*
 function synchronizeChangingVelocity(){
     
     let server = getPlayerMoveStart() ;
@@ -162,6 +162,7 @@ function synchronizeChangingVelocity(){
     console.assert(client_latest.serialize() == server_latest.serialize(), 
         "Client and server are out of sync \n" + client_latest.serialize()  +"\n != \n" + server_latest.serialize());
 }
+*/
 
 function synchronizeObjectDeletion(){
     let server = getPlayerMoveStart() ;
@@ -202,9 +203,11 @@ function synchronizeObjectDeletion(){
     let player = new Player();
     player.x = 0 ;
     player.y = 5 ;
-    player.vx = 10 ;
+    player.tx = 100 ;
+    player.ty = 5;
     player.name = "player 2" ; 
     client.addObject(player, 2, 8) ;
+    Timeline.base_age = 20 ;
     client.run(10);
     console.assert(client.getInstant(2, 7) == null, "Object created too early", client);
     console.assert(client.getInstant(2, 9) != null, "Object not present after creation", client);
@@ -219,30 +222,36 @@ function twoPlayersColliding(){
     // Add and start world for collision check
     World.ID = 0 ;
     timeline.addObject(new World(), World.ID, 0.01);
-    timeline.addEvent(new WorldTick(0.05, {interval:0.1}));
+    timeline.addEvent(new WorldTick({interval:0.1}, 0.05));
 
     // Add two players to collide
     Player.radius = 5 ;
+    Player.speed = 10 ;
 
     let player1 = new Player();
     player1.x = 0 ;
     player1.y = 5 ;
-    player1.vx = 10 ;
+    player1.tx = 100 ;
+    player1.ty = 5;
+    player1.moving = true;
     player1.name = "player 1" ; 
     timeline.addObject(player1, 1, 0.03) ;
 
     let player2 = new Player();
     player2.x = 15 ;
     player2.y = 5 ;
+    player2.tx = 15;
+    player2.ty = 5 ;
+    player2.moving = false;
     player2.name = "player 2" ;
     timeline.addObject(player2, 2, 0.04) ;
     
     // Check players into world
-    timeline.addEvent(new Heartbeat(0.05, {player_id:1}));
-    timeline.addEvent(new Heartbeat(0.06, {player_id:2}));
+    timeline.addEvent(new Heartbeat({player_id:1}, 0.05));
+    timeline.addEvent(new Heartbeat({player_id:2}, 0.06));
 
     // start player moving
-    timeline.addEvent(new MovePlayer(0.1, {player_id:1, interval:0.1 }));
+    timeline.addEvent(new MovePlayer({player_id:1, interval:0.1 }, 0.1));
 
     timeline.run(1);
     console.assert(timeline.getInstant(1, 0.61).x == 6, "Player 1 in wrong position before collision.", timeline.instants[1]);
@@ -252,8 +261,8 @@ function twoPlayersColliding(){
     console.assert(timeline.getInstant(2, 0.66).x == 15.5, "Player 2 in wrong position after collision.", timeline.instants[2]);
     
     // change direction before collision
-    timeline.addEvent(new UpdatePlayerVelocity(0.44, {player_id:1, vx:0, vy:10}));
-    timeline.run(0); //rolback doesn't occur until run is called again
+    timeline.addEvent(new UpdatePlayerTarget({player_id:1, tx:4, ty:10}, 0.44));
+    timeline.run(0); //rollback doesn't occur until run is called again
     console.assert(timeline.getInstant(1, 0.66).x == 4, "Player 1 in wrong position after collision averted.", timeline.instants[1]);
     console.assert(timeline.getInstant(2, 0.66).x == 15, "Player 2 in wrong position after collision averted.", timeline.instants[2]);
 
@@ -262,12 +271,13 @@ function twoPlayersColliding(){
 function runAllTests(){
     Timeline.smooth_clock_sync_rate = 0 ; // Turn off clocksmoothin for unit tests
     Timeline.execute_buffer = 0 ;
+    Player.speed = 10 ;
     
     playerSerialize();
     moveSerialize();
     addPlayerAndMove();
     updateEmptyTimeline();
-    synchronizeChangingVelocity();
+    //synchronizeChangingVelocity();
     synchronizeObjectDeletion();
     
     twoPlayersColliding();

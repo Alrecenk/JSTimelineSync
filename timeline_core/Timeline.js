@@ -74,7 +74,7 @@ class Timeline{
 
     // Adds a new event
     addEvent(new_event){
-        if(!new_event.time){
+        if(!new_event.time){ // TODO note this means things that happen at time 0 don't actually
             if(this.executing_hash){ // if done inside another event
                 new_event.time = this.executed_time + this.default_spawn_delay ; // use time of that event with delay
             }else{

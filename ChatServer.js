@@ -22,7 +22,7 @@ include('./objects/World.js');
 
 include('./events/MovePlayer.js');
 include('./events/AddChatLine.js');
-include('./events/UpdatePlayerVelocity.js');
+include('./events/UpdatePlayerTarget.js');
 include('./events/Heartbeat.js');
 include('./events/WorldTick.js');
 
