@@ -40,8 +40,7 @@ class TClient{
             console.log("Socket connection timed out. Starting local only execution.");
             return;
         }
-        let update = {base_time: -1, events:[], base:{}} ;
-        let out_packet = {update:update, hash_data:timeline.getHashData(-1)};
+        let out_packet = TClient.getFirstPacket() ;
         this.send(JSON.stringify(out_packet));
         // Wait until first response before botting app
         
@@ -74,6 +73,12 @@ class TClient{
 
     sendUpdate(message){
         setTimeout(this.send, this.update_delay, message);
+    }
+
+    static getFirstPacket(){
+        let update = {base_time: -1, events:[], base:{}} ;
+        let hash_data = {events:[], base:{}} ;
+        return {update:update, hash_data:hash_data};
     }
 
 

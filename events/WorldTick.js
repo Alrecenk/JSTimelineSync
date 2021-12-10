@@ -2,8 +2,9 @@
 class WorldTick extends TEvent{
     run(timeline){
         let world = timeline.get(World.ID);
-        if(world == null){
-            console.log("null world on world tick!");
+        if(! (world instanceof World) ){
+            console.log("Not a world!");
+            console.log(world);
             return ;
         }
         // Resolve collisions
