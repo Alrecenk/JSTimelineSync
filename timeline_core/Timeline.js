@@ -27,7 +27,7 @@ class Timeline{
 
     static sync_base_age = 1 ; // time that synced base time is behind current time
     static base_age = 2; // Amount of history to keep on the timeline
-    static execute_buffer = 0.5 ; // How far ahead of the current time to predictively execute instructions
+    static execute_buffer = 0 ; // How far ahead of the current time to predictively execute instructions
     static smooth_clock_sync_rate = 0.2; // how fast to adjust client clock time when it's close to synchronized
     static event_write_delay = 0.001; // time after event its data changes are written
 

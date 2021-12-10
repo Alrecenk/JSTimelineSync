@@ -1,0 +1,180 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<!-- Timeline Core -->
+<script type="text/javascript" src="timeline_core/TObject.js"></script>
+<script type="text/javascript" src="timeline_core/TEvent.js"></script>
+<script type="text/javascript" src="timeline_core/Timeline.js"></script>
+<script type="text/javascript" src="timeline_core/AddObject.js"></script>
+<script type="text/javascript" src="timeline_core/DeleteObject.js"></script>
+<script type="text/javascript" src="timeline_core/TClient.js"></script>
+<!-- Chat Demo objects-->
+<script type="text/javascript" src="objects/Player.js"></script>
+<script type="text/javascript" src="objects/ChatLog.js"></script>
+<script type="text/javascript" src="objects/World.js"></script>
+<!-- Chat Demo Events-->
+<script type="text/javascript" src="events/MovePlayer.js"></script>
+<script type="text/javascript" src="events/AddChatLine.js"></script>
+<script type="text/javascript" src="events/UpdatePlayerTarget.js"></script>
+<script type="text/javascript" src="events/Heartbeat.js"></script>
+<script type="text/javascript" src="events/WorldTick.js"></script>
+
+<script type="text/javascript">
+
+function perfTest(group_size=10){
+
+    let interval = 1.0/60 ;
+    World.ID = 0;
+    Player.radius = 30 ;
+    let pattern_size = (group_size+3) * Player.radius * 4.0 ; // width and height of simulation pattern
+    Player.speed =  pattern_size/ 10.0; // takes 10 seconds to cross pattern
+    
+    //initialize server
+    let server = new Timeline();
+    let world = new World();
+    server.addObject(world, World.ID, 0.001);
+    let chat = new ChatLog();
+    chat.max_lines = 5;
+    chat.chat = [ "Welcome to the server!"];
+    server.addObject(chat,-1,0.002);
+    server.addEvent(new WorldTick({interval:interval}, 0.003));
+
+    // create 3 clients
+    let horizontal = new Timeline();
+    let vertical = new Timeline();
+    let circle = new Timeline();
+
+    let h_packet = TClient.getFirstPacket();
+    let v_packet = TClient.getFirstPacket();
+    let c_packet = TClient.getFirstPacket();
+
+   
+    h_packet = server.synchronize(h_packet.hash_data, h_packet.update, false);
+    h_packet = horizontal.synchronize(h_packet.hash_data, h_packet.update, true);
+
+    v_packet = server.synchronize(v_packet.hash_data, v_packet.update, false);
+    v_packet = vertical.synchronize(v_packet.hash_data, v_packet.update, true);
+
+    c_packet = server.synchronize(c_packet.hash_data, c_packet.update, false);
+    c_packet = circle.synchronize(c_packet.hash_data, c_packet.update, true);
+
+    //Initialize clients
+    for(let k=0;k<group_size;k++){
+
+        // column moving to the left
+        let h_player = new Player();
+        h_player.x = 0;
+        h_player.y = (k+1)*Player.radius*4;
+        h_player.tx = (group_size+20)*Player.radius*4;
+        h_player.ty = (k+1)*Player.radius*4;
+        h_player.moving = true ;
+        h_player.ID = 1 + k*4;
+        horizontal.addObject(h_player, h_player.ID, 0.003+interval*k) ;
+        horizontal.addEvent(new MovePlayer({player_id:h_player.ID, interval:interval}, 0.004+interval*k));
+
+        // row moving down
+        let v_player = new Player();
+        v_player.x = (k+1)*Player.radius*4;
+        v_player.y = 0;
+        v_player.tx = (k+1)*Player.radius*4;
+        v_player.ty = (group_size+20)*Player.radius*4;
+        v_player.moving = true ;
+        v_player.ID = 2 + k*4;
+        horizontal.addObject(v_player, v_player.ID, 0.005+interval*k) ;
+        horizontal.addEvent(new MovePlayer({player_id:v_player.ID, interval:interval}, 0.006+interval*k));
+
+        // a stationary circle covering 3/4th in the middle
+        let c_player = new Player();
+        let angle = k * 2*Math.PI/group_size;
+        let radius = pattern_size * 0.375 ;
+        c_player.x = pattern_size*0.5 + radius*Math.cos(angle);
+        c_player.y = pattern_size*0.5 + radius*Math.sin(angle);
+        c_player.moving = false ;
+        c_player.ID = 3 + k*4 ;
+        circle.addObject(c_player, c_player.ID, 0.007+interval*k) ;
+        circle.addEvent(new MovePlayer({player_id:c_player.ID, interval:interval}, 0.008+interval*k));
+
+
+    }
+
+    let time = 0 ;
+    let beat = Math.round(1/interval) ;
+    // tick for 11 seconds until the pattern is done
+    for(let tick = 0; tick < 11/interval; tick++){
+        // Run the 4 timelines
+        time += interval ;
+        server.run(interval);
+        horizontal.run(interval);
+        vertical.run(interval);
+        circle.run(interval);
+
+        // Sync the 3 clients with the server every 2 ticks
+        if(tick%2 == 0){
+
+            h_packet = server.synchronize(h_packet.hash_data, h_packet.update, false);
+            h_packet = horizontal.synchronize(h_packet.hash_data, h_packet.update, true);
+
+            v_packet = server.synchronize(v_packet.hash_data, v_packet.update, false);
+            v_packet = vertical.synchronize(v_packet.hash_data, v_packet.update, true);
+
+            c_packet = server.synchronize(c_packet.hash_data, c_packet.update, false);
+            c_packet = circle.synchronize(c_packet.hash_data, c_packet.update, true);
+        }
+
+        // Circle players go in a circle
+        if(tick%10 == 5){
+            console.log(tick +" / " + (11/interval));
+            for(let k=0;k<group_size;k++){
+                let angle = k * 2*Math.PI/group_size + time/8;
+                let radius = pattern_size * 0.375 ; 
+                let ID =  3 + k*4 ;
+                let tx = pattern_size*0.5 + radius*Math.cos(angle);
+                let ty = pattern_size*0.5 + radius*Math.sin(angle);
+                circle.addEvent(new UpdatePlayerTarget({player_id:ID, tx:tx, ty:ty}, time + interval*k*0.01));
+            }
+        }
+
+        if(tick%beat == 0){
+            for(let k=0;k<group_size;k++){
+                horizontal.addEvent(new Heartbeat({player_id:1 + k*4}));
+                vertical.addEvent(new Heartbeat({player_id:2 + k*4}));
+                circle.addEvent(new Heartbeat({player_id:3 + k*4}));
+            }
+        }
+    }
+
+    // Verify the circles are in the ballpark of where they should be on the server
+    console.log("Pattern size: " + pattern_size);
+    for(let k=0;k<group_size;k++){
+        let h_player = server.getObserved(1 + k*4);
+        console.assert(h_player.x > pattern_size*0.9, "Horizontal player didn't make it across!", h_player);
+        let v_player = server.getObserved(2 + k*4);
+        console.assert(v_player.y > pattern_size*0.9, "Vertical player didn't make it across!", v_player);
+        let c_player = server.getObserved(3 + k*4);
+        let d = Math.sqrt((c_player.x-pattern_size*0.5) * (c_player.x-pattern_size*0.5) + 
+                (c_player.y-pattern_size*0.5) * (c_player.y-pattern_size*0.5));
+
+        console.assert(d > pattern_size*0.3 && d < pattern_size*0.4, "Circle player is too far from the target ring", d/pattern_size );
+    }
+
+}
+
+function run(){
+    let size = 50 ;
+    let start_time = new Date().getTime();
+    perfTest(size);
+    let end_time = new Date().getTime();
+    let time = (end_time-start_time) ;
+    console.log("Perf test of size " + size +"(" + (size*3+2) +" objects) took " + time +"ms");
+    console.log("This needs to be "  + (time/44000.0) +" times faster for a client to run in real-time.");
+}
+
+</script>
+</head>
+<body>
+<div style="margin: auto; width: 1280px">
+	<button id="send" onClick="run()">Run</button><br>
+    See console and use profilers for results.
+</div>
+</body>
+</html>
