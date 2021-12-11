@@ -1,17 +1,11 @@
 //Special event for deleting an object
 // You can use deleteObject on the timeline and it will create this for you.
 class DeleteObject extends TEvent{
-
-
     run(timeline){
         let ID = this.parameters.ID ;
         // fetch the object to get the correct pointer for execute to place the value
         let obj = timeline.get(ID);
         if(obj!=null){
-            if(ID == World.ID){
-                console.log("deleting " + ID + " with event.");
-                console.trace();
-            }
             // directly set the reference to the edited value to null to delete it in the timeline
             timeline.get_instances[ID] = null ;
         }else{
