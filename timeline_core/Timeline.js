@@ -24,6 +24,7 @@ class Timeline{
     last_observed = {} ; // map from id to last returned interpolation value for getObserved 
     last_observed_time = {} ; // timestamps for last_observed
 
+    event_hashes = {} ; // map from event hashes to -> true for all events
 
     static sync_base_age = 1 ; // time that synced base time is behind current time
     static base_age = 2; // Amount of history to keep on the timeline
@@ -103,6 +104,7 @@ class Timeline{
         }else{
             new_event.computeSerial();
         }
+        this.event_hashes[new_event.hash] = true;
         
     }
 
@@ -183,6 +185,7 @@ class Timeline{
                     this.instants[previous_write_id].splice(this.instant_read_index[previous_write_id]+1, this.instants[previous_write_id].length);
                     data_dirtied[previous_write_id] = true; // dirty the newly unmodified data
                 }
+                delete this.event_hashes[this.events[e].hash];
                 this.events.splice(e,1) ;
                 e--;
             }
@@ -249,7 +252,7 @@ class Timeline{
                     event_updates.push(this.events[k].serial);
                 }
                 // Don't send events spawned by events spawned by events the server has ad infinitum
-                has_event_hash[TEvent.hashSerial(this.events[k].serial)] = true;  // TODO cache hash compute
+                has_event_hash[this.events[k].hash] = true; 
             }
         }
         let obj_updates = {};
@@ -268,15 +271,9 @@ class Timeline{
     // Note: the server should not allow external updates to its base state
     applyUpdate(update, allow_base_change = true){
 
-        let event_hashes = {}; // TODO could precompute this map
-
-        for(let k = 0; k < this.events.length; k++){
-            event_hashes[this.events[k].hash] = true;
-        }
-
         for(let k = 0 ; k < update.events.length; k++){
             let hash = TEvent.hashSerial(update.events[k]) ;
-            if(!event_hashes[hash]){ // Don't add duplicate events sent from server
+            if(!this.event_hashes[hash]){ // Don't add duplicate events sent from server
                 this.addEvent(TEvent.getEventBySerialized(update.events[k], hash)) ;
             }
         }
@@ -363,6 +360,11 @@ class Timeline{
         }
         let to_delete = i ;
         if(to_delete > 0){
+            // delete the hashes
+            for(let k=0;k<to_delete;k++){
+                let hash = this.events[this.events.length - k-1].hash ;
+                delete this.event_hashes[hash];
+            }
             // Delete the old events
             this.events.splice(0,to_delete); 
             // Adjust execution pointer

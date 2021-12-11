@@ -130,7 +130,7 @@ function perfTest(group_size=10){
                 let ID =  3 + k*4 ;
                 let tx = pattern_size*0.5 + radius*Math.cos(angle);
                 let ty = pattern_size*0.5 + radius*Math.sin(angle);
-                circle.addEvent(new UpdatePlayerTarget({player_id:ID, tx:tx, ty:ty}, time + interval*k*0.01));
+                circle.addEvent(new UpdatePlayerTarget({player_id:ID, tx:tx, ty:ty}, time + circle.default_event_delay + interval*k*0.01));
             }
         }
 

@@ -44,7 +44,7 @@ class TEvent{
     }
 
     static hashSerial(serial){
-        return serial.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0); ;
+        return serial.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0) ;
     }
 
 }
