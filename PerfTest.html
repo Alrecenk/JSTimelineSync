@@ -160,13 +160,14 @@ function perfTest(group_size=10){
 }
 
 function run(){
-    let size = 50 ;
+    let size = 20 ;
     let start_time = new Date().getTime();
     perfTest(size);
     let end_time = new Date().getTime();
     let time = (end_time-start_time) ;
     console.log("Perf test of size " + size +"(" + (size*3+2) +" objects) took " + time +"ms");
     console.log("This needs to be "  + (time/44000.0) +" times faster for a client to run in real-time.");
+    console.log("Event hashes sent: " + Timeline.event_hashes_sent);
 }
 
 </script>

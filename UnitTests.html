@@ -107,7 +107,7 @@ function updateEmptyTimeline(){
     sync_base_time = 0.05 ; // Move forward so we get the created object and not the event that makes it
     timeline.run(0.25);
     let t1hash2 = timeline.getHashData(sync_base_time);
-    console.assert(t1hash2.events.length == 3, "Stepped timeline hash has wrong number of events!", t1hash2);
+    console.assert(t1hash2.events.length == 2, "Stepped timeline hash has wrong number of events!", t1hash2);
     console.assert(Object.keys(t1hash2.base).length == 1, "Stepped timeline hash has wrong nuber of objects", t1hash2);
     /*
     //TODO update test to consider new optimizations for skipping generated events

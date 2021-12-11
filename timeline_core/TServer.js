@@ -50,7 +50,7 @@ class TServer{
             if(TServer.aggressive_event_forward){
                 for(let e = 0; e < in_packet.update.events.length; e++){
                     // timeout simulates latency for aggressive forwarding
-                    setTimeout(TServer.quick_sends.push, TServer.response_delay, {source:socket, event:in_packet.update.events[e]});
+                    TServer.quick_sends.push({source:socket, event:in_packet.update.events[e]});
                 }
             } 
         }else{
