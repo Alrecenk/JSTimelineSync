@@ -165,6 +165,7 @@ function synchronizeChangingVelocity(){
 */
 
 function synchronizeObjectDeletion(){
+    
     let server = getPlayerMoveStart() ;
     server.run(1); // Run for a second
     console.assert(server.getInstant(0, server.current_time+Timeline.event_write_delay).x == 10, "Player has not moved the correct amount in initialzation ", server.get(0));
@@ -271,6 +272,8 @@ function twoPlayersColliding(){
 function runAllTests(){
     Timeline.smooth_clock_sync_rate = 0 ; // Turn off clocksmoothin for unit tests
     Timeline.execute_buffer = 0 ;
+    Timeline.sync_base_age = 1 ;
+    Timeline.base_age = 2 ;
     Player.speed = 10 ;
     
     playerSerialize();
