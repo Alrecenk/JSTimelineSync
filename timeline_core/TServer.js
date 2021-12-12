@@ -6,7 +6,7 @@ class TServer{
 
     web_socket_server ;
 
-    static response_delay = 100; // Time to wait before responding (reduces load from low latency clients)
+    static response_delay = 5; // Time to wait before responding (reduces load from low latency clients)
 
     static quick_sends = [];
     static clients = []; // TODO finda cleaner way around this not being reliable on delayed events
