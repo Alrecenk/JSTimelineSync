@@ -4,6 +4,7 @@
 <!-- Timeline Core -->
 <script type="text/javascript" src="timeline_core/TObject.js"></script>
 <script type="text/javascript" src="timeline_core/TEvent.js"></script>
+<script type="text/javascript" src="timeline_core/IntHashSet.js"></script>
 <script type="text/javascript" src="timeline_core/Timeline.js"></script>
 <script type="text/javascript" src="timeline_core/AddObject.js"></script>
 <script type="text/javascript" src="timeline_core/DeleteObject.js"></script>
@@ -159,6 +160,158 @@ function perfTest(group_size=10){
 
 }
 
+
+function rand(){
+   return Math.floor(Math.random() * 2000000000 ) - 1000000000;
+}
+
+/*
+byte* hashsetTest(byte* ptr){
+    
+    auto obj = Variant::deserializeObject(ptr);
+    int hits = obj["hits"].getInt();
+    int misses = obj["misses"].getInt();
+    int extras = obj["extras"].getInt();
+    int iter = obj["iter"].getInt();
+
+    unordered_set<int> theset ;
+    theset.reserve((hits+extras)*1.5);
+
+    for(int k=0;k<extras;k++){
+        theset.insert(rand());
+    }
+
+
+    int hit[hits];
+    for(int k=0;k<hits;k++){
+        hit[k] = rand();
+        theset.insert(hit[k]);
+    }
+
+    int real_hits = 0;
+    int real_misses = 0;
+    int errors = 0 ;
+    for(int i=0;i<iter;i++){
+        for(int k=0;k<hits;k++){
+            if(theset.find(hit[k]) != theset.end()){
+                real_hits++;
+            }else{
+                errors++;
+            }
+        }
+        for(int k=0;k<misses;k++){
+            if(theset.find(rand()) != theset.end()){
+                errors++;
+            }else{
+                real_misses++;
+            }
+        }
+    }
+
+    printf("Hits: %d  Misses: %d  errors: %d \n", real_hits, real_misses, errors);
+    
+    return emptyReturn();
+}
+*/
+
+function objectSetTest(hits, misses, extras, iter){
+
+    let theset = {};
+
+
+    for(let k=0;k<extras;k++){
+        theset[rand()] = true;
+    }
+
+
+    let hit = new Array(hits);
+    for(let k=0;k<hits;k++){
+        hit[k] = rand();
+        theset[hit[k]] = true;
+    }
+
+    let real_hits = 0;
+    let real_misses = 0;
+    let errors = 0 ;
+    for(let i=0;i<iter;i++){
+        
+        for(let k=0;k<hits;k++){
+            if(theset[hit[k]]){
+                real_hits++;
+            }else{
+                errors++;
+            }
+        }
+        for(let k=0;k<misses;k++){
+            if(theset[rand()]){
+                errors++;
+            }else{
+                real_misses++;
+            }
+        }
+    }
+
+    console.log("Hits: " + real_hits + "  Misses: " + real_misses +"  errors: " + errors + " \n");
+}
+
+
+function intHashSetTest(hits, misses, extras, iter){
+
+    let theset = new IntHashSet((hits+extras)*2);
+
+
+    for(let k=0;k<extras;k++){
+        theset.add(rand());
+    }
+
+
+    let hit = new Array(hits);
+    for(let k=0;k<hits;k++){
+        hit[k] = rand();
+        theset.add(hit[k]);
+    }
+
+    let real_hits = 0;
+    let real_misses = 0;
+    let errors = 0 ;
+    for(let i=0;i<iter;i++){
+        
+        for(let k=0;k<hits;k++){
+            if(theset.contains(hit[k])){
+                real_hits++;
+            }else{
+                errors++;
+            }
+        }
+        for(let k=0;k<misses;k++){
+            if(theset.contains(rand())){
+                errors++;
+            }else{
+                real_misses++;
+            }
+        }
+    }
+
+    console.log("Hits: " + real_hits + "  Misses: " + real_misses +"  errors: " + errors + " \n");
+}
+
+function testHashSet(){
+    let hits = 10000;
+    let misses = 1000;
+    let extras = 1000;
+    let iter = 2000;
+    let start_time = new Date().getTime();
+    //tools.API.call("hashsetTest",{hits:hits, misses:misses, extras:extras, iter:iter}, new Serializer());
+    intHashSetTest(hits, misses, extras, iter);
+    let end_time = new Date().getTime();
+    //console.log("C++ WASM time: " + (end_time-start_time ));
+    console.log("IntHashSet time: " + (end_time-start_time ));
+    start_time = new Date().getTime();
+    objectSetTest(hits, misses, extras, iter);
+    end_time = new Date().getTime();
+    console.log("JS object-> boolean time: " + (end_time-start_time ));
+}
+
 function run(){
     let size = 50 ;
     let start_time = new Date().getTime();
@@ -174,7 +327,8 @@ function run(){
 </head>
 <body>
 <div style="margin: auto; width: 1280px">
-	<button id="send" onClick="run()">Run</button><br>
+	<button id="send" onClick="run()">Run perf Test</button><br>
+    <button id="settest" onClick="testHashSet()">Run Set Test</button><br>
     See console and use profilers for results.
 </div>
 </body>
