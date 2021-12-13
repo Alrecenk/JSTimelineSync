@@ -11,6 +11,7 @@ function include(f) {
 
 include('./timeline_core/TObject.js');
 include('./timeline_core/TEvent.js');
+include('./timeline_core/IntHashSet.js');
 include('./timeline_core/Timeline.js');
 include('./timeline_core/AddObject.js');
 include('./timeline_core/DeleteObject.js');
