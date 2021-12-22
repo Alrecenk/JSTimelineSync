@@ -1,2 +1,2 @@
 # JSTimelineSync
-A quick and dirty prototype for testing generalized rollback networking written in pure Javascript.
+This library allows a running web application to be synchronized for efficient and responsive real-time networking without needing to be explicitly written for multiplayer. It uses a hybrid of state synchronization and a generalization of lockstep networking with rollback with the goal of creating a standardized natively networked metaverse scripting environment. It's still in the very early stages, but if you're interested in using it for your metaverse application or non-VR webgame contact Alrecenk.
