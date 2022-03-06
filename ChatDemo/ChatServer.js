@@ -9,13 +9,13 @@ function include(f) {
     script.runInThisContext();
 }
 
-include('./timeline_core/TObject.js');
-include('./timeline_core/TEvent.js');
-include('./timeline_core/IntHashSet.js');
-include('./timeline_core/Timeline.js');
-include('./timeline_core/AddObject.js');
-include('./timeline_core/DeleteObject.js');
-include('./timeline_core/TServer.js');
+include('../timeline_core/TObject.js');
+include('../timeline_core/TEvent.js');
+include('../timeline_core/IntHashSet.js');
+include('../timeline_core/Timeline.js');
+include('../timeline_core/AddObject.js');
+include('../timeline_core/DeleteObject.js');
+include('../timeline_core/TServer.js');
 
 include('./objects/Player.js');
 include('./objects/ChatLog.js');
