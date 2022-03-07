@@ -26,6 +26,11 @@ class Timeline{
 
     event_hashes = {} ; // map from event hashes to -> true for all events
 
+    next_system_id = 5 ;
+    next_free_id = -1 ;
+    assigned_id_block = -1 ;
+    static id_block_size = 10000
+
     static sync_base_age = 0.3 ; // time that synced base time is behind current time
     static base_age = 0.5; // Amount of history to keep on the timeline
     static execute_buffer = 0.1 ; // How far ahead of the current time to predictively execute instructions
@@ -142,6 +147,7 @@ class Timeline{
         this.executed_time = event.time ;
         this.get_instances = {};
         this.executing_hash = event.hash;
+        this.next_system_id = Math.abs(this.executing_hash)-1;
         event.read_ids = {};
         let data_dirtied = event.write_ids; // make sure to dirty data we wrote from a past execution that might not be written this time
         //event.write_ids = {};
@@ -192,6 +198,12 @@ class Timeline{
                     this.instants[previous_write_id].splice(this.instant_read_index[previous_write_id]+1, this.instants[previous_write_id].length);
                     data_dirtied[previous_write_id] = true; // dirty the newly unmodified data
                 }
+                
+                if(this.events[e] instanceof AddObject){ // AddObject breaks the pattern and requires special logic to undo :(
+                    // Can't actually delete or empty allocation since it can still be referenced so we set the object to null but leave the time
+                    this.instants[this.events[e].parameters.ID][0].obj = null;
+                }
+
                 delete this.event_hashes[this.events[e].hash];
                 this.events.splice(e,1) ;
                 e--;
@@ -363,7 +375,7 @@ class Timeline{
                 this.instant_read_index[id] -= to_delete ;
             }
             if(this.instants[id].length == 1 && !(this.instants[id][0].obj)){
-                //TODO fix deletion delete this.instants[id] ; // If last remaining object is a deletion marker, remove from instants entirely
+                delete this.instants[id] ; // If last remaining object is a deletion marker, remove from instants entirely
             }
         }
 
@@ -410,13 +422,29 @@ class Timeline{
         }
     }
 
+
     getNextID(){
-        //TODO should be more efficient and network race condition tolerant somehow
-        let max_id = -1 ;
-        for(let id in this.instants){
-            max_id = Math.max(id, max_id);
+        if(this.executing_hash){ // if done inside another event
+            this.next_system_id++;
+            return this.next_system_id ;
         }
-        return max_id+1;
+        //if we don't have a block assigned yet
+        if(this.assigned_id_block < 0){
+            let max_id = -1 ;
+            for(let id in this.instants){
+                max_id = Math.max(id, max_id);
+            }
+            this.assigned_id_block = max_id + Timeline.id_block_size; // out block is block size past highest allocated item
+            this.next_free_id = this.assigned_id_block;
+        }
+        // ID could be taken if we're looping and some objects have been deleted but others haven't
+        while(this.next_free_id in this.instants){ // TODO could infinite loop if all IDs in block are taken
+            this.next_free_id++;
+            if(this.next_free_id >= this.assigned_id_block + Timeline.id_block_size){ // wrap around when we get to the end of the block
+                this.next_free_id = this.assigned_id_block;
+            }
+        }
+        return this.next_free_id;
     }
 
     getAllIDs(){

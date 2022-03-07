@@ -25,7 +25,7 @@ class Fire extends TEvent{
         b.vy = dy*n;
         b.shooter_id = this.parameters.player_id ;
         b.birth_time = this.time ;
-        let bullet_ID = Math.floor(this.time*1000000) ; // TODO fix possible race condition on getNextID being called by many clients at the same time
+        let bullet_ID = timeline.getNextID() ; // TODO fix possible race condition on getNextID being called by many clients at the same time
         timeline.addObject(b, bullet_ID);
 
         timeline.addEvent(new MoveBullet({bullet_id:bullet_ID, interval:this.parameters.interval }, this.time+this.parameters.interval + 0.0000001*(bullet_ID%1000)));
