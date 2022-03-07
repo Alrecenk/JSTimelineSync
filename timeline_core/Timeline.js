@@ -144,9 +144,9 @@ class Timeline{
         // Incorporate edited values fetched with get into the timeline instants
         for(let read_id in this.get_instances){
             event.read_ids[read_id] = true;
-            if((this.get_instances[read_id] && // object was edited
-                this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.hash())
-                || (event instanceof DeleteObject)){ // object was deleted
+            if(this.get_instances[read_id] && (// object was edited
+                this.get_instances[read_id].hash() != this.instants[read_id][this.instant_read_index[read_id]].obj.hash()
+                || (event instanceof DeleteObject))){ // object was deleted
                 new_write_ids[read_id] = true;
                 //Delete all instants after edited one
                 this.instants[read_id].splice(this.instant_read_index[read_id]+1, this.instants[read_id].length);

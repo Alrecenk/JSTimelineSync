@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<script type="text/javascript" src="../InterfaceButton.js"></script>
+<!-- Timeline Core -->
+<script type="text/javascript" src="../timeline_core/TObject.js"></script>
+<script type="text/javascript" src="../timeline_core/TEvent.js"></script>
+<script type="text/javascript" src="../timeline_core/IntHashSet.js"></script>
+<script type="text/javascript" src="../timeline_core/Timeline.js"></script>
+<script type="text/javascript" src="../timeline_core/AddObject.js"></script>
+<script type="text/javascript" src="../timeline_core/DeleteObject.js"></script>
+<script type="text/javascript" src="../timeline_core/TClient.js"></script>
+<!-- Shoot Demo objects-->
+<script type="text/javascript" src="objects/Player.js"></script>
+<script type="text/javascript" src="objects/Bullet.js"></script>
+<script type="text/javascript" src="objects/World.js"></script>
+<!-- Shoot Demo Events-->
+<script type="text/javascript" src="events/MovePlayer.js"></script>
+<script type="text/javascript" src="events/UpdatePlayerTarget.js"></script>
+<script type="text/javascript" src="events/Heartbeat.js"></script>
+<script type="text/javascript" src="events/WorldTick.js"></script>
+
+<script type="text/javascript">
+
+// Written by @Alrecenk who probably won't complain if you want to send him money.
+
+window.addEventListener("load", windowLoadHandler, false);
+
+var timeline_socket ;
+var timeline;
+var kept_time = 3 ;
+var debug_timeline ;
+var port = 8081;
+var interval = 1/60.0;
+var base_age = 2 ;
+
+var my_id = -1 ;
+var player_fill = "#D0D0D0";
+var player_stroke = "#D000D0" ;
+var stroke_size = 4 ;
+
+
+var last_heartbeat = 0;
+
+
+async function windowLoadHandler() {
+    timeline = new Timeline();
+    debug_timeline = new Timeline();
+    timeline_socket = new TClient(timeline, 8081);
+    await timeline_socket.start();
+	canvasApp();
+}
+
+function canvasApp() {
+	//The canvas this app is running on.
+	var theCanvas = document.getElementById("canvasOne");
+	// Comtext you can use to draw on.
+	var context = theCanvas.getContext("2d");
+	// Mouse position
+	var mouse_x;
+	var mouse_y;
+	// Where the mouse was last pressed down.
+	var down_mouse_x;
+	var down_mouse_y;
+	//Whether the mouse is currently down.
+	var mouse_down = false ;
+	//Which button is down (0 is left, 2 is right)
+	var mouse_button ;
+	
+	var interface_buttons = {}; // Map of from name to buttons currently on the interface.
+	
+	function init() {
+		setupGame();
+		theCanvas.addEventListener("mousedown", mouseDownListener, false);
+		window.addEventListener("mousemove", mouseMoveListener, false);
+		window.addEventListener("mouseup", mouseUpListener, false);
+		window.addEventListener('keydown',keyListener,false);
+        requestAnimationFrame(timeListener);
+        setInterval(timeListener2, 200); // call timer every once in a while no tied to a render, so we don't disconnect on minimize
+
+        // Execute a function when the user releases a key on the keyboard
+        document.getElementById("textbox").addEventListener("keyup", function(event) {
+        // Number 13 is the "Enter" key on the keyboard
+        if (event.keyCode === 13) {
+            // Cancel the default action, if needed
+            event.preventDefault();
+            // Trigger the button element with a click
+            document.getElementById("send").click();
+        }
+        });
+	}
+	
+	function setupGame(){
+        interface_buttons["latency_label"] = new InterfaceButton(theCanvas.width-200, 10, 200, 40, "ping:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+
+		// Initialization stuff for canvas app goes here.
+        my_id = timeline.getNextID(); // TODO race condition: this will be wrong if some other AddObject event gets in before this one runs
+		let player = new Player();
+        player.x = 200 ;
+        player.y = 200 ;
+        player.name = "Player " + my_id  ; // TODO let the player input this
+        timeline.addObject(player, my_id, timeline.current_time+0.2) ;
+        timeline.addEvent(new MovePlayer({player_id:my_id, interval:interval }, timeline.current_time + 0.5 ));
+	}
+	
+	
+	function drawScreen() {
+		//bg
+		context.fillStyle = "#000000";
+		context.fillRect(0,0,theCanvas.width,theCanvas.height);
+		
+        interface_buttons["latency_label"].text = "ping:" + Math.round(timeline.ping*1000) +" ms";
+
+		// Draw any buttons currently on the interface.
+		for (var button_name in interface_buttons) {
+	        if (interface_buttons.hasOwnProperty(button_name)) {
+	        	interface_buttons[button_name].draw(context);
+	        }
+	    }
+
+        // Delay player events by ping so they arrive to all players before they actually happen
+        let delay = Math.max(0.1, timeline.ping*0.5);
+        timeline.setDefaultEventDelay(delay);
+        // Draw the player slightly in the future, so they see their own actions happening quicker
+        timeline.setObservedOffset(delay-0.1, my_id);
+        // Draw everything else slightly in the past to reduce visible rollbacks
+        timeline.setObservedOffset(-timeline.ping*0.75);
+        
+        
+        let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
+
+        for(let id of IDs){
+            let p = timeline.getObserved(id, true);
+            if(p==null){
+                continue ; 
+            }
+            if(p.constructor.name == "Player"){
+                drawCircle(p.x, p.y, Player.radius, player_fill, player_stroke,stroke_size);
+            }
+        }
+		
+	}
+	
+    var last_tx=0;
+    var last_ty=0;
+
+	function timeListener(){
+        if(mouse_down){
+            let me = timeline.getObserved(my_id);
+            let tx = mouse_x ;
+            let ty = mouse_y ;
+            // Only make an event if it has sufficiently changed
+            if(Math.sqrt((tx-last_tx)*(tx-last_tx) + (ty-last_ty)*(ty-last_ty)) > 5){
+                last_tx = tx ;
+                last_ty = ty ;
+                timeline.addEvent(new UpdatePlayerTarget({player_id:my_id, tx:tx, ty:ty})) ;
+            }
+        }
+
+        // Advance time
+        timeline.run();
+        
+		// Draw screen.
+		drawScreen();
+        requestAnimationFrame(timeListener);
+	}
+
+    function timeListener2(){ // TODO terrible name
+        // Advance time
+        timeline.run();
+        
+        if(timeline.current_time > last_heartbeat + 0.5){
+            last_heartbeat = timeline.current_time ;
+            timeline.addEvent(new Heartbeat({player_id:my_id}));
+        }
+    }
+	
+	function keyListener(evt) {
+		evt = evt || window.event;
+	    var key_code = evt.keyCode || evt.which;
+	    var character = String.fromCharCode(key_code); // This only works with letters. Unpredictable otherwise.
+	    
+
+        if(key_code == 37 ){ // Left
+	    	
+	    }else if(key_code == 38 ){// Up
+
+	    }else if(key_code == 39  ){// Right
+	    	
+	    }else if(key_code == 40 ){// Down
+	    	
+            //console.log("Debug hash data:");
+            //console.log(debug_hash_data);
+            //let hash_data = timeline.getHashData(timeline.current_time - 1) ;
+            //console.log("Timeline hash data:");
+            //console.log(hash_data);
+
+            console.log("Debug timeline before update:");
+            console.log(debug_timeline);
+
+            let debug_hash_data = debug_timeline.getHashData(timeline.current_time - 1);
+            let update = timeline.getUpdateFor(debug_hash_data, timeline.current_time - 1);
+            console.log("Debug timeline update:");
+            console.log(update);
+
+            debug_timeline.applyUpdate(update, true);
+            console.log("Debug timeline after update:");
+            console.log(debug_timeline);
+
+	    }else if(key_code == 13){ // Enter
+        }
+	}
+	
+	function mouseDownListener(evt) {
+		var bRect = theCanvas.getBoundingClientRect();
+		mouse_down_x = (evt.clientX - bRect.left)*(theCanvas.width/bRect.width);
+		mouse_down_y = (evt.clientY - bRect.top)*(theCanvas.height/bRect.height);
+		mouse_down = true ;
+		mouse_button = evt.button ;
+        let me = timeline.getObserved(my_id);
+        let tx = mouse_x ;
+        let ty = mouse_y ;
+        // Only make an event if it has sufficiently changed
+        if(Math.sqrt((tx-last_tx)*(tx-last_tx) + (ty-last_ty)*(ty-last_ty)) > 5){
+            last_tx = tx ;
+            last_ty = ty ;
+            timeline.addEvent(new UpdatePlayerTarget({player_id:my_id, tx:tx, ty:ty})) ;
+        }
+	}
+	
+	function mouseUpListener(evt) {
+		mouse_down = false ;
+		// Execute any buttons "clicked" (mouse up and down on the button)
+		for (var button_name in interface_buttons) {
+            if (interface_buttons.hasOwnProperty(button_name)) {
+                var b = interface_buttons[button_name];
+                if(b.inside(mouse_x, mouse_y) && b.inside(mouse_down_x, mouse_down_y)){
+                    b.execute();
+                }
+            }
+        }
+		
+        // Stop on mouse release
+        timeline.addEvent(new UpdatePlayerTarget({player_id:my_id} )) ;
+	}
+
+	function mouseMoveListener(evt) {
+		//getting mouse position correctly 
+		var bRect = theCanvas.getBoundingClientRect();
+		mouse_x = (evt.clientX - bRect.left)*(theCanvas.width/bRect.width);
+		mouse_y = (evt.clientY - bRect.top)*(theCanvas.height/bRect.height);
+		
+		
+	}
+	
+	// Draw a canvas line with a single call.
+	function drawLine(color, size, x1, y1, x2, y2){
+	    context.beginPath();
+	    context.lineWidth = size;
+	    context.strokeStyle = color;// set line color
+	    context.moveTo(x1, y1);
+	    context.lineTo(x2, y2);
+	    context.stroke();
+    }
+	
+	//Draw a canvas circle with a single call.
+	//Use null for fill or stroke color if you do not wish to draw that element.
+	function drawCircle(x, y, radius, fill_color, stroke_color, stroke_size){
+		context.beginPath();
+		context.arc(x, y, radius, 0, 2 * Math.PI, false);
+		context.closePath();
+		if(fill_color != null){
+			context.fillStyle = fill_color;
+			context.fill();
+		}
+		if(stroke_color != null){
+			context.lineWidth = stroke_size;
+			context.strokeStyle = stroke_color;
+			context.stroke();
+		}
+	}	
+	
+
+
+	init(); // Start the canvasApp.
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+</script>
+</head>
+<body>
+<div style="margin: auto; width: 1280px">
+	<div style="top: 50px">
+		<canvas id="canvasOne" width="1280" height="720"
+			oncontextmenu="return false;">
+			Your browser does not support HTML5 canvas.
+		</canvas>
+	</div>
+</div>
+</body>
+</html>
