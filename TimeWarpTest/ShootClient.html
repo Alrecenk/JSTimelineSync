@@ -98,7 +98,7 @@ function canvasApp() {
         interface_buttons["latency_label"] = new InterfaceButton(theCanvas.width-200, 10, 200, 40, "ping:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
 
 		// Initialization stuff for canvas app goes here.
-        my_id = timeline.getNextID(); // TODO race condition: this will be wrong if some other AddObject event gets in before this one runs
+        my_id = timeline.getNextID();
 		let player = new Player();
         player.x = 200 ;
         player.y = 200 ;
@@ -354,8 +354,7 @@ function sleep(ms) {
 <body>
 <div style="margin: auto; width: 1280px">
 	<div style="top: 50px">
-		<canvas id="canvasOne" width="1280" height="720"
-			oncontextmenu="return false;">
+		<canvas id="canvasOne" width="1280" height="720" oncontextmenu="return false;">
 			Your browser does not support HTML5 canvas.
 		</canvas>
 	</div>
