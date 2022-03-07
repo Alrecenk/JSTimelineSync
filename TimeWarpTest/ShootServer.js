@@ -22,6 +22,8 @@ include('./objects/Bullet.js');
 include('./objects/World.js');
 
 include('./events/MovePlayer.js');
+include('./events/MoveBullet.js');
+include('./events/Fire.js');
 include('./events/UpdatePlayerTarget.js');
 include('./events/Heartbeat.js');
 include('./events/WorldTick.js');

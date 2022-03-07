@@ -1,7 +1,7 @@
 // A "player" for the 2D chat example
 class Player extends TObject{
     static radius = 35 ;
-    static speed = 500 ;
+    static speed = 400 ;
     static fire_delay = 0.3 ;
     x = 0;
     y = 0;
@@ -10,7 +10,6 @@ class Player extends TObject{
     moving = false;
     color  = '#D0D0D0';
     last_fire_time = 0 ;
-    shooter_id = 0 ;
 
     constructor(){
         super();
@@ -18,7 +17,7 @@ class Player extends TObject{
 
     // Serialize this object to a string
     serialize(){
-        let s = {x:this.x, y:this.y, tx:this.tx, ty:this.ty, moving:this.moving, shooter_id:this.shooter_id,last_fire_time:this.last_fire_time};
+        let s = {x:this.x, y:this.y, tx:this.tx, ty:this.ty, moving:this.moving, color:this.color,last_fire_time:this.last_fire_time};
         return JSON.stringify(s);
     }
 
@@ -31,7 +30,7 @@ class Player extends TObject{
         this.tx = s.tx;
         this.ty = s.ty ;
         this.moving = s.moving;
-        this.shooter_id = s.shooter_id;
+        this.color = s.color;
         this.last_fire_time = s.last_fire_time
     }
 
@@ -45,6 +44,7 @@ class Player extends TObject{
             return this ;
         }else{
             let ip = new Player();
+            ip.set(this.serialize());
             let b = Player.speed *1.1*dt/distance ;
             
             let a = 1-b;

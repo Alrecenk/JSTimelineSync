@@ -124,12 +124,12 @@ function canvasApp() {
 	    }
 
         // Delay player events by ping so they arrive to all players before they actually happen
-        let delay = Math.max(0.1, timeline.ping*0.5);
+        let delay = Math.max(0.02, timeline.ping*0.5);
         timeline.setDefaultEventDelay(delay);
         // Draw the player slightly in the future, so they see their own actions happening quicker
-        timeline.setObservedOffset(delay-0.1, my_id);
+        timeline.setObservedOffset(delay, my_id);
         // Draw everything else slightly in the past to reduce visible rollbacks
-        timeline.setObservedOffset(-timeline.ping*0.75);
+        timeline.setObservedOffset(-delay*0.75);
         
         
         let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
