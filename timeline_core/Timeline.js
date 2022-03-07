@@ -32,8 +32,8 @@ class Timeline{
     static id_block_size = 10000
 
     static sync_base_age = 0.3 ; // time that synced base time is behind current time
-    static base_age = 0.5; // Amount of history to keep on the timeline
-    static execute_buffer = 0.1 ; // How far ahead of the current time to predictively execute instructions
+    static base_age = 1; // Amount of history to keep on the timeline
+    static execute_buffer = 0.3 ; // How far ahead of the current time to predictively execute instructions
     static smooth_clock_sync_rate = 0.2; // how fast to adjust client clock time when it's close to synchronized
     static event_write_delay = 0.0001; // time after event its data changes are written
 
@@ -195,7 +195,9 @@ class Timeline{
                     // Fetch the value to adjust the pointer in case it wasn't read by the event rerun
                     let value = this.getInstant(previous_write_id, this.events[e].time);
                     //Delete all instants after and including previously edited one
-                    this.instants[previous_write_id].splice(this.instant_read_index[previous_write_id]+1, this.instants[previous_write_id].length);
+                    if(this.instants[previous_write_id]){ // TODO why does this sometimes happen?
+                        this.instants[previous_write_id].splice(this.instant_read_index[previous_write_id]+1, this.instants[previous_write_id].length);
+                    }
                     data_dirtied[previous_write_id] = true; // dirty the newly unmodified data
                 }
                 

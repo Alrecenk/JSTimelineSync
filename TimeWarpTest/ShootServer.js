@@ -27,6 +27,7 @@ include('./events/Fire.js');
 include('./events/UpdatePlayerTarget.js');
 include('./events/Heartbeat.js');
 include('./events/WorldTick.js');
+include('./events/ConfigureTime.js');
 
 var timeline ;
 
@@ -44,6 +45,11 @@ function tick(){
     timeline.run();
     if(TServer.aggressive_event_forward){
         tserver.forwardAggressiveEvents();
+    }
+    // Simulate latency based on World settings via ConfigureTime
+    let world = timeline.getObserved(World.ID) ;
+    if(world){
+        TServer.response_delay =  world.send_delay ;
     }
 }
 

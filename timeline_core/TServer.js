@@ -58,6 +58,14 @@ class TServer{
         }
     }
 
+    send(message, client_index){
+        TServer.clients[client_index].send(message);
+    }
+
+    sendUpdate(message, client_index){
+        setTimeout(this.send, TServer.response_delay , message, client_index);
+    }
+
     forwardAggressiveEvents(){
         for(let k=0;k<TServer.clients.length;k++){
             let update_events = [];
@@ -69,7 +77,7 @@ class TServer{
             if(update_events.length > 0){
                 let update = {current_time:this.timeline.current_time, events:update_events};
                 let out_packet = {update:update};
-                TServer.clients[k].send(JSON.stringify(out_packet));
+                this.sendUpdate(JSON.stringify(out_packet), k);
             }
         }
         TServer.quick_sends = [];
