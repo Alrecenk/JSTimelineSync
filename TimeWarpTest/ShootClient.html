@@ -23,6 +23,7 @@
 <script type="text/javascript" src="events/UpdatePlayerTarget.js"></script>
 <script type="text/javascript" src="events/Heartbeat.js"></script>
 <script type="text/javascript" src="events/WorldTick.js"></script>
+<script type="text/javascript" src="events/ConfigureTime.js"></script>
 
 <script type="text/javascript">
 
@@ -224,7 +225,10 @@ function canvasApp() {
 
         // Advance time
         timeline.run();
-        
+
+        timeline_socket.sync_delay = timeline.getObserved(World.ID).send_delay ;
+        timeline_socket.update_delay = timeline_socket.sync_delay ;
+
 		// Draw screen.
 		drawScreen();
         requestAnimationFrame(timeListener);
@@ -261,6 +265,21 @@ function canvasApp() {
                 down_key = true;
                 move_key_changed = true;
             }
+
+            if(character == 'L'){
+                let world = timeline.getObserved(World.ID) ;
+                let lag = world.send_delay + 25;
+                let warp = world.max_info_speed = world.max_info_speed;
+                console.log("Setting lag to " + lag);
+                timeline.addEvent(new ConfigureTime({send_delay:lag, max_info_speed:warp})) ;
+            }else if(character == 'K'){
+                let world = timeline.getObserved(World.ID) ;
+                let lag = Math.max(2,world.send_delay - 25);
+                let warp = world.max_info_speed = world.max_info_speed;
+                console.log("Setting lag to " + lag);
+                timeline.addEvent(new ConfigureTime({send_delay:lag, max_info_speed:warp})) ;
+            }
+
         }else if(event.type == "keyup"){
             if(key_code == 37 || character == 'A'){ // Left
                 left_key= false;
