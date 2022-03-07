@@ -10,6 +10,8 @@ class Player extends TObject{
     moving = false;
     color  = '#D0D0D0';
     last_fire_time = 0 ;
+    times_hit = 0 ;
+    hits = 0 ;
 
     constructor(){
         super();
@@ -17,7 +19,7 @@ class Player extends TObject{
 
     // Serialize this object to a string
     serialize(){
-        let s = {x:this.x, y:this.y, tx:this.tx, ty:this.ty, moving:this.moving, color:this.color,last_fire_time:this.last_fire_time};
+        let s = {x:this.x, y:this.y, tx:this.tx, ty:this.ty, moving:this.moving, color:this.color,last_fire_time:this.last_fire_time, hits:this.hits, times_hit:this.times_hit};
         return JSON.stringify(s);
     }
 
@@ -31,7 +33,9 @@ class Player extends TObject{
         this.ty = s.ty ;
         this.moving = s.moving;
         this.color = s.color;
-        this.last_fire_time = s.last_fire_time
+        this.last_fire_time = s.last_fire_time;
+        this.hits = s.hits;
+        this.times_hit = s.times_hit;
     }
 
     interpolateFrom(last_observed, last_time, this_time){
