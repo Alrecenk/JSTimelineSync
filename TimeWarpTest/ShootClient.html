@@ -94,6 +94,7 @@ function canvasApp() {
 	}
 	
 	function setupGame(){
+        interface_buttons["score_label"] = new InterfaceButton(200, 10, 200, 40, "ping:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
         interface_buttons["latency_label"] = new InterfaceButton(theCanvas.width-200, 10, 200, 40, "ping:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
 
 		// Initialization stuff for canvas app goes here.
@@ -113,6 +114,7 @@ function canvasApp() {
 		context.fillRect(0,0,theCanvas.width,theCanvas.height);
 		
         interface_buttons["latency_label"].text = "ping:" + Math.round(timeline.ping*1000) +" ms";
+
 
 		// Draw any buttons currently on the interface.
 		for (var button_name in interface_buttons) {
@@ -140,6 +142,9 @@ function canvasApp() {
                 continue ; 
             }
             stuff[id] = p ;
+            if(id == my_id){
+                interface_buttons["score_label"].text = "Score: " + (p.hits-p.times_hit) +"  Hits:" + p.hits +"  Times Hit: " + p.times_hit;
+            }
         }
 
         for(let id in stuff){
@@ -164,8 +169,7 @@ function canvasApp() {
 	function timeListener(){
 
         let me = timeline.getObserved(my_id); // TODO is this messing up interpolation?
-        let tx = mouse_x ;
-        let ty = mouse_y ;
+        
 
         let key_move = false;
         if(move_key_changed){
@@ -189,8 +193,8 @@ function canvasApp() {
             let dot= (pvx*vx + pvy*vy) ;
             let sim = dot/ Math.sqrt((vx*vx+vy*vy)*(pvx*pvx+pvy*pvy)); 
             if(sim < 0.9 || dot < 1){
-                tx = me.x + vx*2000;
-                ty = me.y + vy*2000;
+                let tx = me.x + vx*2000;
+                let ty = me.y + vy*2000;
                 last_tx = tx ;
                 last_ty = ty ;
                 timeline.addEvent(new UpdatePlayerTarget({player_id:my_id, tx:tx, ty:ty})) ;
@@ -200,6 +204,8 @@ function canvasApp() {
         }
 
         if(mouse_down){
+            let tx = mouse_x ;
+            let ty = mouse_y ;
             if(mouse_button == 0){ // left mouse button fires
                 if(timeline.current_time > me.last_fire_time + Player.fire_delay){ // can fire
                 

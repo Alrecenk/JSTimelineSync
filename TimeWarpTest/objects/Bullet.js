@@ -16,14 +16,13 @@ class Bullet extends TObject{
 
     // Serialize this object to a string
     serialize(){
-        let s = {name:this.name, x:this.x, y:this.y, vx:this.vx, vy:this.vy, shooter_id:this.shooter_id, birth_time:this.birth_time};
+        let s = {x:this.x, y:this.y, vx:this.vx, vy:this.vy, shooter_id:this.shooter_id, birth_time:this.birth_time};
         return JSON.stringify(s);
     }
 
     // Set this object to a serialized string created with serialize.
     set(serialized){
         let s = JSON.parse(serialized);
-        this.name = s.name;
         this.x = s.x;
         this.y = s.y ;
         this.vx = s.vx;

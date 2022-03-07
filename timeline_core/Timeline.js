@@ -28,7 +28,7 @@ class Timeline{
 
     static sync_base_age = 0.3 ; // time that synced base time is behind current time
     static base_age = 0.5; // Amount of history to keep on the timeline
-    static execute_buffer = 0.2 ; // How far ahead of the current time to predictively execute instructions
+    static execute_buffer = 0.1 ; // How far ahead of the current time to predictively execute instructions
     static smooth_clock_sync_rate = 0.2; // how fast to adjust client clock time when it's close to synchronized
     static event_write_delay = 0.0001; // time after event its data changes are written
 
@@ -91,7 +91,13 @@ class Timeline{
             place--;
         }
         this.events.splice(place,0,new_event);
+        let prev_next = this.next_execute;
         this.next_execute = Math.min(place,this.next_execute);
+        /*
+        if(this.next_execute < prev_next){
+            console.log("rolled back " + (prev_next - this.next_execute));
+            console.log(new_event);
+        }*/
         //track events spawned from other events so they can be deleted if a rerun doesn't spawn them
         if(this.executing_hash){
             new_event.spawned_by = this.executing_hash ;
@@ -269,7 +275,7 @@ class Timeline{
             if(base_obj != null && base_obj.hash() != other_hash_data.base[id]){
                 obj_updates[id] = {type:base_obj.constructor.name, time:this.last_instant_time, serial:base_obj.serialize()} ;
             }else if(base_obj == null && other_hash_data.base[id]){ // if nulled out but other still has it
-                obj_updates[id] = {time:this.last_instant_time} ; // sned update of just time
+                obj_updates[id] = {time:this.last_instant_time} ; // send update of just time
             }
         }
         return {base_time: base_time, current_time: this.current_time, events:event_updates, base:obj_updates} ;
@@ -357,7 +363,7 @@ class Timeline{
                 this.instant_read_index[id] -= to_delete ;
             }
             if(this.instants[id].length == 1 && !(this.instants[id][0].obj)){
-                delete this.instants[id] ; // If last remaining object is a deletion marker, remove from instants entirely
+                //TODO fix deletion delete this.instants[id] ; // If last remaining object is a deletion marker, remove from instants entirely
             }
         }
 
