@@ -12,13 +12,14 @@
 <script type="text/javascript" src="../timeline_core/AddObject.js"></script>
 <script type="text/javascript" src="../timeline_core/DeleteObject.js"></script>
 <script type="text/javascript" src="../timeline_core/TClient.js"></script>
-<!-- Chat Demo objects-->
+<!-- Shoot Demo objects-->
 <script type="text/javascript" src="objects/Player.js"></script>
-<script type="text/javascript" src="objects/ChatLog.js"></script>
+<script type="text/javascript" src="objects/Bullet.js"></script>
 <script type="text/javascript" src="objects/World.js"></script>
-<!-- Chat Demo Events-->
+<!-- Shoot Demo Events-->
 <script type="text/javascript" src="events/MovePlayer.js"></script>
-<script type="text/javascript" src="events/AddChatLine.js"></script>
+<script type="text/javascript" src="events/MoveBullet.js"></script>
+<script type="text/javascript" src="events/Fire.js"></script>
 <script type="text/javascript" src="events/UpdatePlayerTarget.js"></script>
 <script type="text/javascript" src="events/Heartbeat.js"></script>
 <script type="text/javascript" src="events/WorldTick.js"></script>
@@ -38,14 +39,20 @@ var interval = 1/60.0;
 var base_age = 2 ;
 
 var my_id = -1 ;
-var chat_id = -1 ;
-var player_fill = "#D0D0D0";
 var player_stroke = "#D000D0" ;
-var stroke_size = 4 ;
+var bullet_stroke = "#000000";
+var stroke_size = 2 ;
 
-var last_chat_text = "";
 
 var last_heartbeat = 0;
+
+var left_key = false;
+var right_key = false;
+var up_key = false;
+var down_key = false;
+var move_key_changed = false;
+
+
 
 
 async function windowLoadHandler() {
@@ -80,19 +87,10 @@ function canvasApp() {
 		window.addEventListener("mousemove", mouseMoveListener, false);
 		window.addEventListener("mouseup", mouseUpListener, false);
 		window.addEventListener('keydown',keyListener,false);
+        window.addEventListener('keyup',keyListener,false);
         requestAnimationFrame(timeListener);
         setInterval(timeListener2, 200); // call timer every once in a while no tied to a render, so we don't disconnect on minimize
 
-        // Execute a function when the user releases a key on the keyboard
-        document.getElementById("textbox").addEventListener("keyup", function(event) {
-        // Number 13 is the "Enter" key on the keyboard
-        if (event.keyCode === 13) {
-            // Cancel the default action, if needed
-            event.preventDefault();
-            // Trigger the button element with a click
-            document.getElementById("send").click();
-        }
-        });
 	}
 	
 	function setupGame(){
@@ -103,7 +101,7 @@ function canvasApp() {
 		let player = new Player();
         player.x = 200 ;
         player.y = 200 ;
-        player.name = "Player " + my_id  ; // TODO let the player input this
+        player.color = "#" + Math.floor(Math.random()*16777215).toString(16);
         timeline.addObject(player, my_id, timeline.current_time+0.2) ;
         timeline.addEvent(new MovePlayer({player_id:my_id, interval:interval }, timeline.current_time + 0.5 ));
 	}
@@ -134,28 +132,29 @@ function canvasApp() {
         
         let IDs = timeline.getAllIDs() ; // TODO way to fetch things by groups?
 
+        // Fetch all the observables once
+        let stuff = {}
         for(let id of IDs){
             let p = timeline.getObserved(id, true);
             if(p==null){
                 continue ; 
             }
+            stuff[id] = p ;
+        }
+
+        for(let id in stuff){
+            let p = stuff[id];
             if(p.constructor.name == "Player"){
-                drawCircle(p.x, p.y, Player.radius, player_fill, player_stroke,stroke_size);
+                drawCircle(p.x, p.y, Player.radius, p.color, player_stroke,stroke_size);
             }
-            if(p.constructor.name == "ChatLog"){
-                chat_id = id ;
-                let chat_lines = p.chat;
-                while(chat_lines.length < p.max_lines){
-                    chat_lines.unshift("");
-                }
-                let chat_text = p.chat.join("<br>");
-                if(chat_text != last_chat_text){ // don't touch the DOM unless there's a change
-                    let paragraph = document.getElementById("chat");
-                    paragraph.innerHTML = chat_text ;   
-                    last_chat_text = chat_text;
-                } 
+            if(p.constructor.name == "Bullet"){
+                drawCircle(p.x, p.y, Bullet.radius, stuff[p.shooter_id].color, bullet_stroke, stroke_size);
             }
         }
+
+
+        
+
 		
 	}
 	
@@ -163,16 +162,58 @@ function canvasApp() {
     var last_ty=0;
 
 	function timeListener(){
-        if(mouse_down){
-            let me = timeline.getObserved(my_id);
-            let tx = mouse_x ;
-            let ty = mouse_y ;
-            // Only make an event if it has sufficiently changed
-            if(Math.sqrt((tx-last_tx)*(tx-last_tx) + (ty-last_ty)*(ty-last_ty)) > 5){
+
+        let me = timeline.getObserved(my_id); // TODO is this messing up interpolation?
+        let tx = mouse_x ;
+        let ty = mouse_y ;
+
+        let key_move = false;
+        if(move_key_changed){
+            let vx = 0;
+            let vy = 0 ;
+            if(left_key){
+                vx-=1;
+            }
+            if(right_key){
+                vx+=1;
+            }
+            if(up_key){
+                vy--;
+            }
+            if(down_key){
+                vy++;
+            }
+            // only create event if direction has changed
+            let pvx = me.tx-me.x;
+            let pvy = me.ty-me.y;
+            let dot= (pvx*vx + pvy*vy) ;
+            let sim = dot/ Math.sqrt((vx*vx+vy*vy)*(pvx*pvx+pvy*pvy)); 
+            if(sim < 0.9 || dot < 1){
+                tx = me.x + vx*2000;
+                ty = me.y + vy*2000;
                 last_tx = tx ;
                 last_ty = ty ;
                 timeline.addEvent(new UpdatePlayerTarget({player_id:my_id, tx:tx, ty:ty})) ;
             }
+            move_key_changed = false;
+            key_move = true;
+        }
+
+        if(mouse_down){
+            if(mouse_button == 0){ // left mouse button fires
+                if(timeline.current_time > me.last_fire_time + Player.fire_delay){ // can fire
+                
+                    timeline.addEvent(new Fire({player_id:my_id, tx:tx, ty:ty, interval:interval}));
+                }
+            }else if(!key_move){ // other mouse buttons move
+                // Only make an event if it has sufficiently changed
+                if(Math.sqrt((tx-last_tx)*(tx-last_tx) + (ty-last_ty)*(ty-last_ty)) > 5){
+                    last_tx = tx ;
+                    last_ty = ty ;
+                    timeline.addEvent(new UpdatePlayerTarget({player_id:my_id, tx:tx, ty:ty})) ;
+                }
+            }
+
         }
 
         // Advance time
@@ -198,40 +239,36 @@ function canvasApp() {
 	    var key_code = evt.keyCode || evt.which;
 	    var character = String.fromCharCode(key_code); // This only works with letters. Unpredictable otherwise.
 	    
+        //console.log(event.type +" - " + key_code +" - " + character);
         
-        // TODO update chat line and submit on enter
-
-        if(key_code == 37 ){ // Left
-	    	
-	    }else if(key_code == 38 ){// Up
-            let me = timeline.getObserved(my_id);
-
-	    	console.log(me.serialize());
-            console.log(me.hash());
-	    }else if(key_code == 39  ){// Right
-	    	
-	    }else if(key_code == 40 ){// Down
-	    	
-            //console.log("Debug hash data:");
-            //console.log(debug_hash_data);
-            //let hash_data = timeline.getHashData(timeline.current_time - 1) ;
-            //console.log("Timeline hash data:");
-            //console.log(hash_data);
-
-            console.log("Debug timeline before update:");
-            console.log(debug_timeline);
-
-            let debug_hash_data = debug_timeline.getHashData(timeline.current_time - 1);
-            let update = timeline.getUpdateFor(debug_hash_data, timeline.current_time - 1);
-            console.log("Debug timeline update:");
-            console.log(update);
-
-            debug_timeline.applyUpdate(update, true);
-            console.log("Debug timeline after update:");
-            console.log(debug_timeline);
-
-	    }else if(key_code == 13){ // Enter
-            sendClicked();
+        if(event.type == "keydown"){
+            if(key_code == 37 || character == 'A'){ // Left
+                left_key= true;
+                move_key_changed = true;
+            }else if(key_code == 38 || character == 'W'){// Up
+                up_key = true;
+                move_key_changed = true;
+            }else if(key_code == 39 || character == 'D'  ){// Right
+                right_key = true;
+                move_key_changed = true;
+            }else if(key_code == 40  || character == 'S'){// Down
+                down_key = true;
+                move_key_changed = true;
+            }
+        }else if(event.type == "keyup"){
+            if(key_code == 37 || character == 'A'){ // Left
+                left_key= false;
+                move_key_changed = true;
+            }else if(key_code == 38 || character == 'W'){// Up
+                up_key = false;
+                move_key_changed = true;
+            }else if(key_code == 39 || character == 'D'  ){// Right
+                right_key = false;
+                move_key_changed = true;
+            }else if(key_code == 40  || character == 'S'){// Down
+                down_key = false;
+                move_key_changed = true;
+            }
         }
 	}
 	
@@ -241,15 +278,6 @@ function canvasApp() {
 		mouse_down_y = (evt.clientY - bRect.top)*(theCanvas.height/bRect.height);
 		mouse_down = true ;
 		mouse_button = evt.button ;
-        let me = timeline.getObserved(my_id);
-        let tx = mouse_x ;
-        let ty = mouse_y ;
-        // Only make an event if it has sufficiently changed
-        if(Math.sqrt((tx-last_tx)*(tx-last_tx) + (ty-last_ty)*(ty-last_ty)) > 5){
-            last_tx = tx ;
-            last_ty = ty ;
-            timeline.addEvent(new UpdatePlayerTarget({player_id:my_id, tx:tx, ty:ty})) ;
-        }
 	}
 	
 	function mouseUpListener(evt) {
@@ -265,7 +293,9 @@ function canvasApp() {
         }
 		
         // Stop on mouse release
-        timeline.addEvent(new UpdatePlayerTarget({player_id:my_id} )) ;
+        if(evt.button !=0 ){ // not release of shoot button
+            timeline.addEvent(new UpdatePlayerTarget({player_id:my_id} )) ;
+        }
 	}
 
 	function mouseMoveListener(evt) {
@@ -309,15 +339,6 @@ function canvasApp() {
 	init(); // Start the canvasApp.
 }
 
-function sendClicked(){
-    let me = timeline.getInstant(my_id, timeline.current_time+timeline.default_event_delay);
-    let text_box = document.getElementById("textbox");
-    if(text_box.value != ""){
-        timeline.addEvent(new AddChatLine({chat_id:chat_id, line:me.name+": "+text_box.value})) ;
-        text_box.value = "";
-    }
-}
-
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -331,9 +352,6 @@ function sleep(ms) {
 			oncontextmenu="return false;">
 			Your browser does not support HTML5 canvas.
 		</canvas>
-        <p id="chat" style="text-align:left">Connecting...<br><br><br><br></p>
-        <input id="textbox" type="text" size="170">
-		<button id="send" onClick="sendClicked()">Send</button>
 	</div>
 </div>
 </body>

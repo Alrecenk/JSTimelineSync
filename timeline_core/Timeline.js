@@ -16,8 +16,8 @@ class Timeline{
     ping=-1;
     client = undefined; // A link to a TClient object if this timeline is attached to one
     aggressive_event_sending = true; // Whether user generated events are sent to the server aggressively
-    default_event_delay = 0.1; // events added without time will be given current_time + this
-    default_spawn_delay = 0.01; // events spawned in other events without time will be given executed_time + this
+    default_event_delay = 0.01; // events added without time will be given current_time + this
+    default_spawn_delay = 0.001; // events spawned in other events without time will be given executed_time + this
 
     observe_offset = {}; // Map from id to when that ID should be displayed relative to current_time
     default_observe_offset = -0.1 ; // default if observe_offset isn't set for a requested id
@@ -28,9 +28,9 @@ class Timeline{
 
     static sync_base_age = 0.3 ; // time that synced base time is behind current time
     static base_age = 0.5; // Amount of history to keep on the timeline
-    static execute_buffer = 0.05 ; // How far ahead of the current time to predictively execute instructions
+    static execute_buffer = 0.2 ; // How far ahead of the current time to predictively execute instructions
     static smooth_clock_sync_rate = 0.2; // how fast to adjust client clock time when it's close to synchronized
-    static event_write_delay = 0.001; // time after event its data changes are written
+    static event_write_delay = 0.0001; // time after event its data changes are written
 
     constructor(time = 0){
         this.current_time = time ;
