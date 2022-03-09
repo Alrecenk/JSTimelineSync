@@ -1,7 +1,7 @@
 // A "player" for the 2D chat example
 class Player extends TObject{
     static radius = 35 ;
-    static speed = 400 ;
+    static speed = 300 ;
     static fire_delay = 0.3 ;
     x = 0;
     y = 0;
@@ -44,12 +44,12 @@ class Player extends TObject{
         }
         let distance = Math.sqrt((this.x-last_observed.x)*(this.x-last_observed.x)+(this.y-last_observed.y)*(this.y-last_observed.y));
         let dt = this_time-last_time ;
-        if(distance/dt < Player.speed *1.1){
+        if(distance/dt < Player.speed *1.3){
             return this ;
         }else{
             let ip = new Player();
             ip.set(this.serialize());
-            let b = Player.speed *1.1*dt/distance ;
+            let b = Player.speed *1.3*dt/distance ;
             
             let a = 1-b;
             ip.x = a*last_observed.x + b* this.x ;

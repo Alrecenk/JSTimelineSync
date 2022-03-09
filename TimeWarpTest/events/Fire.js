@@ -2,7 +2,7 @@ class Fire extends TEvent{
     run(timeline){
         //console.log("moveplayer " + this.parameters.player_id +" : " + this.time);
         let player = timeline.get(this.parameters.player_id);
-
+        
         if(!(player instanceof Player)){
             return ;
         }
@@ -27,7 +27,7 @@ class Fire extends TEvent{
         b.birth_time = this.time ;
         let bullet_ID = timeline.getNextID() ; // TODO fix possible race condition on getNextID being called by many clients at the same time
         timeline.addObject(b, bullet_ID);
-
+        timeline.observe_offset[bullet_ID] = timeline.observe_offset[b.shooter_id] ; // Not really allowed in this system but simulates time warp without delay
         timeline.addEvent(new MoveBullet({bullet_id:bullet_ID, interval:this.parameters.interval }, this.time+this.parameters.interval + 0.0000001*(bullet_ID%1000)));
 
     }

@@ -31,9 +31,9 @@ class Timeline{
     assigned_id_block = -1 ;
     static id_block_size = 10000
 
-    static sync_base_age = 0.3 ; // time that synced base time is behind current time
+    static sync_base_age = 0.5 ; // time that synced base time is behind current time
     static base_age = 1; // Amount of history to keep on the timeline
-    static execute_buffer = 0.3 ; // How far ahead of the current time to predictively execute instructions
+    static execute_buffer = 0.5 ; // How far ahead of the current time to predictively execute instructions
     static smooth_clock_sync_rate = 0.2; // how fast to adjust client clock time when it's close to synchronized
     static event_write_delay = 0.0001; // time after event its data changes are written
 
@@ -473,8 +473,12 @@ class Timeline{
     // If enabled Interpolates from last interpolated object from this call using overridden TObject.interpolateFrom
     getObserved(id, interpolate = false){
         let fetch_time = this.current_time + (id in this.observe_offset ? this.observe_offset[id] : this.default_observe_offset) ;
+        if(!interpolate){ // not trying to interpolate
+            let fetched = this.getInstant(id, fetch_time);
+            return fetched ;
+        }
         // If fetching at the same time as previously then pull from interpolation cache
-        if(fetch_time == this.last_observed_time[id]){
+        if(interpolate && fetch_time == this.last_observed_time[id] && this.last_observed[id]){
             return this.last_observed[id] ;
         }
         let fetched = this.getInstant(id, fetch_time);
@@ -482,7 +486,7 @@ class Timeline{
             this.last_observed[id] = fetched.interpolateFrom(this.last_observed[id], this.last_observed_time[id], fetch_time);
             this.last_observed_time[id] = fetch_time ;
             return this.last_observed[id];
-        }else{ // return raw fetched data if no cache and can't interpolate
+        }else{ // fall back to non-interpolate bug log for next interpolation
             this.last_observed[id] = fetched;
             this.last_observed_time[id] = fetch_time ;
             return fetched ;
