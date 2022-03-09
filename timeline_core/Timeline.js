@@ -473,13 +473,18 @@ class Timeline{
     // If enabled Interpolates from last interpolated object from this call using overridden TObject.interpolateFrom
     getObserved(id, interpolate = false){
         let fetch_time = this.current_time + (id in this.observe_offset ? this.observe_offset[id] : this.default_observe_offset) ;
+        // If fetching at the same time as previously then pull from interpolation cache
+        if(fetch_time == this.last_observed_time[id]){
+            return this.last_observed[id] ;
+        }
         let fetched = this.getInstant(id, fetch_time);
-        if(fetched && interpolate && fetched.interpolateFrom){
-            //TODO is there other data needed for good interpolation?, revisit interface with real examples
-            this.last_observed[id] = fetched.interpolateFrom(this.last_observed[id], this.last_observed_time[id], fetch_time); // TODO 
+        if(fetched && interpolate && fetched.interpolateFrom){ // interpolate if possible
+            this.last_observed[id] = fetched.interpolateFrom(this.last_observed[id], this.last_observed_time[id], fetch_time);
             this.last_observed_time[id] = fetch_time ;
             return this.last_observed[id];
-        }else{
+        }else{ // return raw fetched data if no cache and can't interpolate
+            this.last_observed[id] = fetched;
+            this.last_observed_time[id] = fetch_time ;
             return fetched ;
         }
     }
